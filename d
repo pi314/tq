@@ -21,96 +21,91 @@ def run(cmd, capture_output=False):
     return sub.run(cmd, **kwargs)
 
 
-def d_list(argv):
-    p = run(['drive', 'list'] + argv, capture_output=True)
-    if p.stderr:
-        print(p.stderr.decode('utf-8'), end="")
-        return 1
-    else:
-        output = p.stdout.decode('utf-8').rstrip('\n').split('\n')
-        for line in sorted(output):
-            line = line.rstrip()
-            print(line)
-
-    return p.returncode
+def pre_cmd_dummy(cmd, argv):
+    return (cmd, argv, False)
 
 
-def d_push(argv):
-    try:
-        p = run(['drive', 'push', '-no-prompt'] + argv)
-        res_str = 'succ' if p.returncode == 0 else 'fail'
-        ret = p.returncode
-    except KeyboardInterrupt:
-        res_str = 'interrupted'
-        ret = 1
-
-    try:
-        run([
-            telegram_bot,
-            'push '+ res_str +':\n' + '\n'.join(argv)
-        ])
-    except KeyboardInterrupt:
-        pass
-
-    return ret
+def pre_cmd_delete(cmd, argv):
+    print('Remap "delete" to "trash"')
+    return ('trash', argv, False)
 
 
-def d_pull(argv):
-    try:
-        p = run(['drive', 'pull', '-no-prompt'] + argv)
-        res_str = 'succ' if p.returncode == 0 else 'fail'
-        ret = p.returncode
-    except KeyboardInterrupt:
-        res_str = 'interrupted'
-        ret = 1
-
-    try:
-        run([
-            telegram_bot,
-            'pull '+ res_str +':\n' + '\n'.join(argv)
-        ])
-    except KeyboardInterrupt:
-        pass
-
-    return ret
+def pre_cmd_list(cmd, argv):
+    return (cmd, argv, True)
 
 
-def pre_cmd(cmd, argv):
-    cap_out = False
-
-    if cmd == 'delete':
-        print('Remap "delete" to "trash"')
-        cmd = 'trash'
-
-    elif cmd == 'list':
-        cap_out = True
-
-    return (cmd, argv, cap_out)
+def pre_cmd_push_pull(cmd, argv):
+    return (cmd, ['-no-prompt'] + argv, False)
 
 
 def d_cmd(cmd, argv):
-    (cmd, argv, cap_out) = pre_cmd(cmd, argv)
+    (cmd, argv, cap_out) = pre_cmd.get(cmd, pre_cmd_dummy)(cmd, argv)
 
-    p = run(['drive', cmd] + argv, capture_output=cap_out)
+    try:
+        p = None
+        p = run(['drive', cmd] + argv, capture_output=cap_out)
+    except KeyboardInterrupt:
+        pass
 
-    post_cmd(cmd, argv, p)
+    post_cmd.get(cmd, post_cmd_dummy)(cmd, argv, p)
 
-    return p.returncode
+    return p.returncode if p else 1
 
 
-def post_cmd(cmd, argv, res):
-    if cmd == 'list':
-        if res.stderr:
-            print(res.stderr.decode('utf-8'), end="")
-            return 1
-        else:
-            output = res.stdout.decode('utf-8').rstrip('\n').split('\n')
-            for line in sorted(output):
-                line = line.rstrip()
-                print(line)
+def post_cmd_dummy(cmd, argv, p):
+    pass
+
+
+def post_cmd_list(cmd, argv, p):
+    if not p:
+        return
+
+    if p.stderr:
+        print(p.stderr.decode('utf-8'), end="")
+        return
+
+    output = p.stdout.decode('utf-8').rstrip('\n').split('\n')
+    for line in sorted(output):
+        line = line.rstrip()
+        print(line)
+
+
+def post_cmd_push_pull(cmd, argv, p):
+    if not p:
+        res_str = 'interrupted'
+
+    elif p.returncode == 0:
+        res_str = 'succ'
+
+    else:
+        res_str = 'fail'
+
+    try:
+        run([
+            telegram_bot,
+            cmd +' '+ res_str +':\n' + '\n'.join(filter(lambda x: x != '-no-prompt', argv))
+        ])
+    except KeyboardInterrupt:
+        pass
 
 
 def main():
+    global pre_cmd
+    global post_cmd
+
+    pre_cmd = {
+            'delete': pre_cmd_delete,
+            'list': pre_cmd_list,
+            'push': pre_cmd_push_pull,
+            'pull': pre_cmd_push_pull,
+    }
+
+    post_cmd = {
+            'list': post_cmd_list,
+            'push': post_cmd_push_pull,
+            'pull': post_cmd_push_pull,
+    }
+
     sys.argv = sys.argv[1:]
 
     if len(sys.argv) == 0:
@@ -118,15 +113,6 @@ def main():
 
     cmd = sys.argv[0]
     argv = sys.argv[1:]
-
-    # if cmd == 'list':
-    #     return d_list(argv)
-
-    if cmd == 'push':
-        return d_push(argv)
-
-    if cmd == 'pull':
-        return d_pull(argv)
 
     try:
         return d_cmd(cmd, argv)
