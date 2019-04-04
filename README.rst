@@ -9,6 +9,22 @@ I want ``drive`` to
 
 None of those should be made into ``drive``, so here the wrapper comes!
 
---------
 
-Work in progress
+Installation
+-------------------------------------------------------------------------------
+WIP
+
+
+Usage
+-------------------------------------------------------------------------------
+Assume this utility is called by / soft-linked to / aliased to ``d``,
+
+* ``d push`` - just push directly like ``drive push``
+* ``d server`` - start a central queue server for local requests
+* ``d pushq`` - queue the push command to the server and exit directly
+
+  - May need a way to remove the command from queue
+
+* ``d pushw`` - wait for previous existing ``d`` finishes before push
+
+Not sure if those are easy to implement.
