@@ -9,6 +9,7 @@ telegram_bot = 'cychih_bot'
 
 
 def run(cmd, capture_output=False):
+    print(cmd)
     kwargs = {
         'stdout': sys.stdout,
         'stderr': sys.stderr,
@@ -80,10 +81,19 @@ def d_trash(argv):
     return p.returncode
 
 
+def pre_cmd(cmd, argv):
+    if cmd == 'delete':
+        print('Remap "delete" to "trash"')
+        cmd = 'trash'
+
+    return (cmd, argv)
+
+
 def d_cmd(cmd, argv):
+    (cmd, argv) = pre_cmd(cmd, argv)
+
     p = run(['drive', cmd] + argv)
     return p.returncode
-
 
 def main():
     sys.argv = sys.argv[1:]
@@ -103,15 +113,11 @@ def main():
     if cmd == 'pull':
         return d_pull(argv)
 
-    if cmd == 'delete':
-        return d_trash(argv)
-
-    if cmd in ('open', 'rename', 'move', 'mv'):
+    try:
         return d_cmd(cmd, argv)
-
-    print('Unknown command:', cmd)
-
-    return 1
+    except KeyboardInterrupt:
+        print('KeyboardInterrupt')
+        return 1
 
 
 exit(main())
