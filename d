@@ -75,12 +75,6 @@ def d_pull(argv):
     return ret
 
 
-def d_trash(argv):
-    print('Remap "delete" to "trash"')
-    p = run(['drive', 'trash'] + argv)
-    return p.returncode
-
-
 def pre_cmd(cmd, argv):
     if cmd == 'delete':
         print('Remap "delete" to "trash"')
@@ -94,6 +88,7 @@ def d_cmd(cmd, argv):
 
     p = run(['drive', cmd] + argv)
     return p.returncode
+
 
 def main():
     sys.argv = sys.argv[1:]
