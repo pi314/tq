@@ -120,5 +120,3 @@ def main():
         print('KeyboardInterrupt')
         return 1
 
-
-exit(main())
