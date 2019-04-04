@@ -21,7 +21,7 @@ def post(cmd, argv, p):
     try:
         run([
             telegram_bot,
-            cmd +' '+ res_str +':\n' + '\n'.join(filter(lambda x: x != '-no-prompt', argv))
+            cmd +' '+ res_str +':\n' + '\n'.join(argv)
         ])
     except KeyboardInterrupt:
         pass
