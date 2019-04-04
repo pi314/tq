@@ -76,18 +76,38 @@ def d_pull(argv):
 
 
 def pre_cmd(cmd, argv):
+    cap_out = False
+
     if cmd == 'delete':
         print('Remap "delete" to "trash"')
         cmd = 'trash'
 
-    return (cmd, argv)
+    elif cmd == 'list':
+        cap_out = True
+
+    return (cmd, argv, cap_out)
 
 
 def d_cmd(cmd, argv):
-    (cmd, argv) = pre_cmd(cmd, argv)
+    (cmd, argv, cap_out) = pre_cmd(cmd, argv)
 
-    p = run(['drive', cmd] + argv)
+    p = run(['drive', cmd] + argv, capture_output=cap_out)
+
+    post_cmd(cmd, argv, p)
+
     return p.returncode
+
+
+def post_cmd(cmd, argv, res):
+    if cmd == 'list':
+        if res.stderr:
+            print(res.stderr.decode('utf-8'), end="")
+            return 1
+        else:
+            output = res.stdout.decode('utf-8').rstrip('\n').split('\n')
+            for line in sorted(output):
+                line = line.rstrip()
+                print(line)
 
 
 def main():
@@ -99,8 +119,8 @@ def main():
     cmd = sys.argv[0]
     argv = sys.argv[1:]
 
-    if cmd == 'list':
-        return d_list(argv)
+    # if cmd == 'list':
+    #     return d_list(argv)
 
     if cmd == 'push':
         return d_push(argv)
