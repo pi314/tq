@@ -1,6 +1,6 @@
 import sys
 
-from .utils import run, ticket_alloc, ticket_free
+from .utils import run, ticket_alloc, ticket_free, log_info, log_error
 
 
 def d_cmd(cmd_user, argv_user):
@@ -58,5 +58,5 @@ def main():
     try:
         return d_cmd(cmd, argv)
     except KeyboardInterrupt:
-        print('KeyboardInterrupt')
+        log_error('KeyboardInterrupt')
         return 1

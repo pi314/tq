@@ -1,3 +1,6 @@
+from .utils import log_info, log_error
+
+
 def pre(cmd, argv):
     return (cmd, argv, True)
 
@@ -7,7 +10,7 @@ def post(cmd, argv, p):
         return
 
     if p.stderr:
-        print(p.stderr.decode('utf-8'), end="")
+        log_error(p.stderr.decode('utf-8'), end="")
         return
 
     output = p.stdout.decode('utf-8').rstrip('\n').split('\n')

@@ -15,6 +15,20 @@ my_ticket = None
 ticket_fname_matcher = re.compile(r'^dpush\.[0-9]+\.(\w+)\((\d+)\)$')
 
 
+def log_info(*args, **kwargs):
+    if sys.stdout.isatty():
+        print(*args, **kwargs)
+    else:
+        with open('/dev/tty', 'w') as tty:
+            stdout_backup, sys.stdout = sys.stdout, tty
+            print(*args, **kwargs, file=tty)
+            sys.stdout = stdout_backup
+
+
+def log_error(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
+
 class Ticket:
     @classmethod
     def scan(cls):
@@ -55,14 +69,14 @@ class Ticket:
 
     def create(self):
         with open(join(TICKET_PATH, str(self.tid)), 'w') as f:
-            print('[alloc]', self.tid)
+            log_info('[alloc]', self.tid)
 
     def destroy(self):
         try:
-            print('[free]', self.tid)
+            log_info('[free]', self.tid)
             os.remove(join(TICKET_PATH, str(self.tid)))
         except OSError as e:
-            print(e)
+            log_error(e)
 
     def exists(self):
         return exists(join(TICKET_PATH, self.tid))
@@ -84,7 +98,7 @@ def ticket_alloc(cmd):
     global my_ticket
 
     if my_ticket:
-        print(my_ticket)
+        log_info(my_ticket)
         return
 
     my_ticket = Ticket(cmd=cmd)
@@ -106,7 +120,7 @@ def ticket_wait(cmd=None):
             tickets = list(filter(lambda x: x == my_ticket or x.cmd in cmd, tickets))
 
         for i in tickets:
-            print('[scan]', i)
+            log_info('[scan]', i)
 
         my_idx = tickets.index(my_ticket)
 
@@ -116,12 +130,12 @@ def ticket_wait(cmd=None):
         prev_ticket = tickets[my_idx - 1]
         prev_pid = prev_ticket.pid
 
-        print('[wait]', prev_pid)
+        log_info('[wait]', prev_pid)
         sub.run(['caffeinate', '-w', prev_pid])
 
         try:
             if prev_ticket.exists():
-                print('[orphen] {}'.format(prev_ticket))
+                log_info('[orphen] {}'.format(prev_ticket))
                 prev_ticket.destroy()
         except OSError as e:
-            print(e)
+            log_error(e)

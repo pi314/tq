@@ -1,3 +1,6 @@
+from .utils import log_info, log_error
+
+
 def pre(cmd, argv):
-    print('Remap "delete" to "trash"')
+    log_info('Remap "delete" to "trash"')
     return ('trash', argv, False)
