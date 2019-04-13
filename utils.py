@@ -48,7 +48,7 @@ class Ticket:
         else:
             now = datetime.now()
             pid = os.getpid()
-            self.tid = 'dpush.' + now.strftime('%Y%m%d%H%M%S') + '%06d.%s(%05d)' % (now.microsecond, cmd, pid)
+            self.tid = 'dpush.' + now.strftime('%Y%m%d%H%M%S') + '%06d.%s(%d)' % (now.microsecond, cmd, pid)
 
         m = ticket_fname_matcher.match(self.tid)
 
