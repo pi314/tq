@@ -1,3 +1,5 @@
+import os
+
 from .utils import run
 
 
@@ -21,7 +23,8 @@ def post(cmd, argv, p):
     try:
         run([
             telegram_bot,
-            cmd +' '+ res_str +':\n' + '\n'.join(argv)
+            '\n'.join(['pwd: '+ os.getcwd(), cmd +' '+ res_str +':'] + argv)
+            # os.getcwd() +'\n'+ cmd +' '+ res_str +':\n' + '\n'.join(argv)
         ])
     except KeyboardInterrupt:
         pass
