@@ -1,10 +1,19 @@
 import sys
 
-from .utils import run, ticket_alloc, ticket_free, log_info, log_error
+from .utils import (run, log_info, log_error,
+        ticket_alloc, ticket_free, ticket_wait, ticket_scan)
 
 
 def d_cmd(cmd_user, argv_user):
     from . import cmd_dummy
+
+    if cmd_user == 'wait':
+        ticket_wait()
+        return 0
+
+    if cmd_user == 'tickets':
+        ticket_scan()
+        return 0
 
     ticket_alloc(cmd_user)
     (cmd_exec, argv_exec, cap_out) = pre_cmd.get(cmd_user, cmd_dummy.pre)(cmd_user, argv_user.copy())

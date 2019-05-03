@@ -122,12 +122,20 @@ def ticket_wait(cmd=None):
         for i in tickets:
             log_info('[scan]', i)
 
-        my_idx = tickets.index(my_ticket)
+        if my_ticket:
+            my_idx = tickets.index(my_ticket)
 
-        if my_idx <= 0:
+            if my_idx <= 0:
+                my_idx = len(tickets)
+
+        else:
+            my_idx = len(tickets)
+
+        try:
+            prev_ticket = tickets[my_idx - 1]
+        except IndexError:
             return
 
-        prev_ticket = tickets[my_idx - 1]
         prev_pid = prev_ticket.pid
 
         log_info('[wait]', prev_pid)
@@ -139,3 +147,9 @@ def ticket_wait(cmd=None):
                 prev_ticket.destroy()
         except OSError as e:
             log_error(e)
+
+
+def ticket_scan():
+    tickets = Ticket.scan()
+    for i in tickets:
+        log_info('[scan]', i)
