@@ -125,7 +125,10 @@ def ticket_wait(cmd=None):
         if my_ticket:
             my_idx = tickets.index(my_ticket)
 
-            if my_idx <= 0:
+            if my_idx == 0:
+                return
+
+            elif my_idx < 0:
                 my_idx = len(tickets)
 
         else:
