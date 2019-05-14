@@ -19,9 +19,8 @@ Usage
 -------------------------------------------------------------------------------
 Assume this utility is called by / soft-linked to / aliased to ``d``,
 
-* ``d push`` - just push directly like ``drive push``
 * ``d pushw`` - wait for previous existing ``d`` finishes before push
 * ``d wait`` - wait for all ``d`` processes to finish
 * ``d tickets`` - show all ``d`` ticket files
 
-Not sure if those are easy to implement.
+All other commands are directly passed to ``drive``.
