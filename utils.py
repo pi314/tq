@@ -7,6 +7,8 @@ from subprocess import PIPE
 from datetime import datetime
 from os.path import exists, join
 
+from .chain import Chain
+
 
 TICKET_PATH = '/tmp'
 
@@ -32,6 +34,10 @@ def log_error(*args, **kwargs):
 class Ticket:
     @classmethod
     def scan(cls):
+        return Chain(os.listdir(TICKET_PATH))\
+                .filter(lambda x: ticket_fname_matcher.match(x))\
+                .map(lambda x: Ticket(tid=x)).sorted()
+
         return sorted(
             map(lambda x: Ticket(tid=x),
                 filter(
@@ -53,7 +59,7 @@ class Ticket:
         m = ticket_fname_matcher.match(self.tid)
 
         self.cmd = m.group(1)
-        self.pid = m.group(2)
+        self.pid = int(m.group(2))
 
     def __str__(self):
         return self.tid
@@ -67,13 +73,16 @@ class Ticket:
     def __lt__(self, other):
         return self.tid < other.tid
 
-    def create(self):
+    def free(self):
+        log_info('[free]', self.tid)
+        self.delete();
+
+    def alloc(self):
         with open(join(TICKET_PATH, str(self.tid)), 'w') as f:
             log_info('[alloc]', self.tid)
 
-    def destroy(self):
+    def delete(self):
         try:
-            log_info('[free]', self.tid)
             os.remove(join(TICKET_PATH, str(self.tid)))
         except OSError as e:
             log_error(e)
@@ -81,6 +90,13 @@ class Ticket:
     def exists(self):
         return exists(join(TICKET_PATH, self.tid))
 
+    def valid(self):
+        try:
+            os.kill(self.pid, 0)
+        except OSError:
+            return False
+        else:
+            return True
 
 def run(cmd, capture_output=False):
     kwargs = {
@@ -91,7 +107,7 @@ def run(cmd, capture_output=False):
         kwargs['stdout'] = PIPE
         kwargs['stderr'] = PIPE
 
-    return sub.run(cmd, **kwargs)
+    return sub.run(map(str, cmd), **kwargs)
 
 
 def ticket_alloc(cmd):
@@ -102,13 +118,13 @@ def ticket_alloc(cmd):
         return
 
     my_ticket = Ticket(cmd=cmd)
-    my_ticket.create()
+    my_ticket.alloc()
 
 
 def ticket_free():
     global my_ticket
 
-    my_ticket.destroy()
+    my_ticket.free()
     my_ticket = None
 
 
@@ -142,12 +158,12 @@ def ticket_wait(cmd=None):
         prev_pid = prev_ticket.pid
 
         log_info('[wait]', prev_pid)
-        sub.run(['caffeinate', '-w', prev_pid])
+        run(['caffeinate', '-w', prev_pid])
 
         try:
             if prev_ticket.exists():
                 log_info('[orphen] {}'.format(prev_ticket))
-                prev_ticket.destroy()
+                prev_ticket.free()
         except OSError as e:
             log_error(e)
 
@@ -155,4 +171,7 @@ def ticket_wait(cmd=None):
 def ticket_scan():
     tickets = Ticket.scan()
     for i in tickets:
-        log_info('[scan]', i)
+        if i.valid():
+            log_info('[scan]', i)
+        else:
+            i.delete()
