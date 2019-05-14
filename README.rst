@@ -24,3 +24,10 @@ Assume this utility is called by / soft-linked to / aliased to ``d``,
 * ``d tickets`` - show all ``d`` ticket files
 
 All other commands are directly passed to ``drive``.
+
+
+TODO
+
+* ``d daemon`` - start a daemon for further ``pushq`` / ``pullq``
+* ``d pushq`` - put task to queue and exit
+* ``d pullq`` - put task to queue and exit
