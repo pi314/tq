@@ -10,21 +10,11 @@ def pre(cmd, argv):
     return (cmd, ['-no-prompt'] + argv, False)
 
 
-def post(cmd, argv, p):
-    if not p:
-        res_str = 'interrupted'
-
-    elif p.returncode == 0:
-        res_str = 'succ'
-
-    else:
-        res_str = 'fail'
-
+def post(cmd, argv, result):
     try:
         run([
             telegram_bot,
-            '\n'.join(['pwd: '+ os.getcwd(), cmd +' '+ res_str +':'] + argv)
-            # os.getcwd() +'\n'+ cmd +' '+ res_str +':\n' + '\n'.join(argv)
+            '\n'.join(['pwd: '+ os.getcwd(), cmd +' '+ result +':'] + argv)
         ])
     except KeyboardInterrupt:
         pass

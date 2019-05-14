@@ -16,18 +16,23 @@ def d_cmd(cmd_user, argv_user):
         return 0
 
     ticket_alloc(cmd_user)
-    (cmd_exec, argv_exec, cap_out) = pre_cmd.get(cmd_user, cmd_dummy.pre)(cmd_user, argv_user.copy())
 
     try:
-        p = None
+        result = 'canceled'
+        (cmd_exec, argv_exec, cap_out) = pre_cmd.get(cmd_user, cmd_dummy.pre)(cmd_user, argv_user.copy())
+        result = 'interrupted'
         p = run(['drive', cmd_exec] + argv_exec, capture_output=cap_out)
+        result = 'succeed' if (p.returncode == 0) else 'failed'
     except KeyboardInterrupt:
         pass
 
     ticket_free()
-    post_cmd.get(cmd_user, cmd_dummy.post)(cmd_user, argv_user, p)
+    post_cmd.get(cmd_user, cmd_dummy.post)(cmd_user, argv_user, result)
 
-    return p.returncode if p else 1
+    try:
+        return p.returncode
+    except UnboundLocalError:
+        return 1
 
 
 def main():
