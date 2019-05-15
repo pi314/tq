@@ -27,7 +27,7 @@ def d_cmd(cmd_user, argv_user):
         pass
 
     ticket_free()
-    post_cmd.get(cmd_user, cmd_dummy.post)(cmd_user, argv_user, result)
+    post_cmd.get(cmd_user, cmd_dummy.post)(cmd_user, argv_user, result, (p.stdout, p.stderr))
 
     try:
         return p.returncode

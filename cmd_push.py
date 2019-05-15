@@ -10,7 +10,7 @@ def pre(cmd, argv):
     return (cmd, ['-no-prompt'] + argv, False)
 
 
-def post(cmd, argv, result):
+def post(cmd, argv, result, output):
     try:
         run([
             telegram_bot,
