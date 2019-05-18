@@ -27,11 +27,12 @@ def d_cmd(cmd_user, argv_user):
         pass
 
     ticket_free()
-    post_cmd.get(cmd_user, cmd_dummy.post)(cmd_user, argv_user, result, (p.stdout, p.stderr))
 
     try:
+        post_cmd.get(cmd_user, cmd_dummy.post)(cmd_user, argv_user, result, (p.stdout, p.stderr))
         return p.returncode
     except UnboundLocalError:
+        post_cmd.get(cmd_user, cmd_dummy.post)(cmd_user, argv_user, result, ('', ''))
         return 1
 
 
