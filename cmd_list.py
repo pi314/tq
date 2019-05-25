@@ -7,7 +7,7 @@ def pre(cmd, argv):
 
 def post(cmd, argv, result, output):
     if output[1]:
-        log_error(p.stderr.decode('utf-8'), end="")
+        log_error(output[1].decode('utf-8'), end="")
         return
 
     for line in sorted(output[0].decode('utf-8').rstrip('\n').split('\n')):
