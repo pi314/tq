@@ -14,6 +14,7 @@ from .utils import log_error
 
 
 task_queue = Queue()
+task = None
 
 
 class Task:
@@ -41,22 +42,48 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
     def handle(self):
         try:
-            data = json.loads(self.readline())
+            req = json.loads(self.readline())
         except json.decoder.JSONDecodeError:
             self.writeresult('400 Bad Request', 'Invalid format')
             return
 
-        cwd = data.get('cwd', None)
-        if not cwd:
-            self.writeresult('400 Bad Request', 'Should provide cwd')
-            return
-
-        cmd = data.get('cmd', None)
+        cmd = req.get('cmd', None)
         if not cmd:
             self.writeresult('400 Bad Request', 'Should provide cmd')
             return
 
-        args = data.get('args', None)
+        if cmd == 'dump':
+            self.handle_dump()
+        else:
+            self.handle_cmd(req)
+
+    def handle_dump(self):
+        data = {}
+        if task:
+            data['working'] = {}
+            data['working']['cwd'] = task.cwd
+            data['working']['cmd'] = task.cmd
+            data['working']['args'] = task.args
+
+        data['pending'] = []
+        while not task_queue.empty():
+            t = task_queue.get()
+            i = {}
+            i['cwd'] = t.cwd
+            i['cmd'] = t.cmd
+            i['args'] = t.args
+            data['pending'].append(i)
+
+        self.writejson(data)
+
+    def handle_cmd(self, req):
+        cmd = req['cmd']
+        cwd = req.get('cwd', None)
+        if not cwd:
+            self.writeresult('400 Bad Request', 'Should provide cwd')
+            return
+
+        args = req.get('args', None)
         if not args:
             self.writeresult('400 Bad Request', 'No arguments provided')
             return
@@ -81,7 +108,50 @@ def print_task_status(task, status):
     print('⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻')
 
 
+def send_req(req):
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.connect((HOST, PORT))
+
+            def writeline(line):
+                sock.sendall((line + '\n').encode('utf-8'))
+
+            def writejson(obj):
+                writeline(json.dumps(obj))
+
+            writejson(req)
+
+            sock.shutdown(socket.SHUT_WR)
+
+            res = ''
+            while True:
+                data = sock.recv(1024).strip()
+                if not data: break
+                res += data.decode('utf-8')
+
+            res = json.loads(res)
+            print(json.dumps(res, indent=4))
+
+            try:
+                sock.shutdown(socket.SHUT_RD)
+            except OSError:
+                pass
+
+            try:
+                sock.close()
+            except OSError:
+                pass
+
+    except ConnectionRefusedError:
+        print('Task queue not running')
+
+
+# =============================================================================
+# Public interface
+# -----------------------------------------------------------------------------
 def start():
+    global task
+
     t = Thread(target=server_frontend)
     t.daemon = True
     t.start()
@@ -104,38 +174,42 @@ def start():
 
 
 def add_task(cmd, argv):
+    req = {}
+    req['cwd'] = os.getcwd()
+    req['cmd'] = cmd
+    req['args'] = argv
+    send_req(req)
+
+
+def dump():
+    req = {}
+    req['cmd'] = 'dump'
+    send_req(req)
+
+
+def load():
+    data = ''
+    for line in sys.stdin:
+        data += line.rstrip()
+
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.connect((HOST, PORT))
+        data = json.loads(data)
 
-            def writeline(line):
-                sock.sendall((line + '\n').encode('utf-8'))
+        if 'working' in data:
+            w = data['working']
+            t = Task(w['cwd'], w['cmd'], w['args'])
+            task_queue.put(t)
 
-            def writejson(obj):
-                writeline(json.dumps(obj))
+            for p in data['pending']:
+                t = Task(p['cwd'], p['cmd'], p['args'])
+                task_queue.put(t)
 
-            data = {}
-            data['cwd'] = os.getcwd()
-            data['cmd'] = cmd
-            data['args'] = argv
-            writejson(data)
+        start()
 
-            sock.shutdown(socket.SHUT_WR)
+    except json.decoder.JSONDecodeError:
+        log_error('Invalid JSON string')
+        return 1
 
-            while True:
-                data = sock.recv(1024).strip()
-                if not data: break
-                print(data.decode('utf-8'))
-
-            try:
-                sock.shutdown(socket.SHUT_RD)
-            except OSError:
-                pass
-
-            try:
-                sock.close()
-            except OSError:
-                pass
-
-    except ConnectionRefusedError:
-        print('Task queue not running')
+# -----------------------------------------------------------------------------
+# Public interface
+# =============================================================================

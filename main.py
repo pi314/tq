@@ -20,7 +20,18 @@ def main():
     argv = sys.argv[1:]
 
     if cmd in ('queue', 'q'):
-        return task_queue.start()
+        if not argv or argv[0] == 'start':
+            return task_queue.start()
+
+        elif argv[0] == 'dump':
+            return task_queue.dump()
+
+        elif argv[0] == 'load':
+            return task_queue.load()
+
+        else:
+            log_error('Unknown command')
+            return 1
 
     if cmd in ('pushq', 'pullq'):
         task_queue.add_task(cmd, argv)

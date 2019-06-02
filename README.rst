@@ -19,7 +19,10 @@ Usage
 -------------------------------------------------------------------------------
 Assume this utility is called by / soft-linked to / aliased to ``d``,
 
-* ``d queue`` - start a task queue for further ``pushq`` / ``pullq``
+* ``d queue start`` - start a task queue for further ``pushq`` / ``pullq``
+* ``d queue dump`` - dump queue content in JSON format
+* ``d queue load`` - load queue content JSON format stdin before starting queue
+* ``d queue`` - same as ``d queue start``
 * ``d pushq`` - put task to queue and exit
 * ``d pullq`` - put task to queue and exit
 
