@@ -14,10 +14,6 @@ from .worker import do_job
 from .utils import log_error
 
 
-SEP_LINE_TOP = '_______________________________________________________________________________'
-SEP_LINE_BOT = '⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻'
-
-
 task_queue = Queue()
 task = None
 
@@ -50,13 +46,12 @@ class Task:
 
     def __str__(self):
         ret = []
-        ret.append(SEP_LINE_TOP)
+        ret.append('')
         ret.append('['+ self.status +'] cwd:'+ self.cwd)
         ret.append('['+ self.status +'] cmd:'+ self.cmd)
         for i in self.args:
             ret.append('['+ self.status +'] arg:'+ i)
 
-        ret.append(SEP_LINE_BOT)
         return '\n'.join(ret)
 
 
