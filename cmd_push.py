@@ -7,6 +7,11 @@ telegram_bot = 'cychih_bot'
 
 
 def pre(cmd, argv):
+    cmd = {
+            'pushq': 'push',
+            'pullq': 'pull',
+            }.get(cmd, cmd)
+
     return (cmd, ['-no-prompt'] + argv, False)
 
 
