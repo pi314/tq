@@ -37,7 +37,7 @@ def do_job(cmd_user, argv_user):
 
     try:
         post_cmd.get(cmd_user, cmd_dummy.post)(cmd_user, argv_user, result, (p.stdout, p.stderr))
-        return p.returncode
+        return (result, p.returncode)
     except UnboundLocalError:
         post_cmd.get(cmd_user, cmd_dummy.post)(cmd_user, argv_user, result, ('', ''))
-        return 1
+        return (result, 1)

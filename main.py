@@ -23,6 +23,9 @@ def main():
         if not argv or argv[0] == 'start':
             return task_queue.start()
 
+        elif argv[0] == 'dumpjson':
+            return task_queue.dumpjson()
+
         elif argv[0] == 'dump':
             return task_queue.dump()
 
@@ -38,7 +41,7 @@ def main():
         return
 
     try:
-        return do_job(cmd, argv)
+        return do_job(cmd, argv)[1]
     except KeyboardInterrupt:
         log_error('KeyboardInterrupt')
         return 1

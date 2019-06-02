@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import socket
 import socketserver
 import sys
@@ -13,8 +14,31 @@ from .worker import do_job
 from .utils import log_error
 
 
+SEP_LINE_TOP = '_______________________________________________________________________________'
+SEP_LINE_BOT = '⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻'
+
+
 task_queue = Queue()
 task = None
+
+
+def dump_queue():
+    data = {}
+    if task:
+        data['working'] = {}
+        data['working']['cwd'] = task.cwd
+        data['working']['cmd'] = task.cmd
+        data['working']['args'] = task.args
+
+    data['pending'] = []
+    for t in list(task_queue.queue):
+        i = {}
+        i['cwd'] = t.cwd
+        i['cmd'] = t.cmd
+        i['args'] = t.args
+        data['pending'].append(i)
+
+    return data
 
 
 class Task:
@@ -22,6 +46,18 @@ class Task:
         self.cwd = cwd
         self.cmd = cmd
         self.args = args
+        self.status = 'pending'
+
+    def __str__(self):
+        ret = []
+        ret.append(SEP_LINE_TOP)
+        ret.append('['+ self.status +'] cwd:'+ self.cwd)
+        ret.append('['+ self.status +'] cmd:'+ self.cmd)
+        for i in self.args:
+            ret.append('['+ self.status +'] arg:'+ i)
+
+        ret.append(SEP_LINE_BOT)
+        return '\n'.join(ret)
 
 
 class MyTCPHandler(socketserver.StreamRequestHandler):
@@ -29,7 +65,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         return self.rfile.readline().strip().decode('utf-8')
 
     def writeline(self, line):
-        self.wfile.write((line + '\n').encode('utf-8'))
+        self.wfile.write((line.rstrip() + '\n').encode('utf-8'))
 
     def writejson(self, obj):
         self.writeline(json.dumps(obj))
@@ -52,28 +88,23 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             self.writeresult('400 Bad Request', 'Should provide cmd')
             return
 
-        if cmd == 'dump':
+        if cmd == 'dumpjson':
+            self.handle_dumpjson()
+        elif cmd == 'dump':
             self.handle_dump()
         else:
             self.handle_cmd(req)
 
-    def handle_dump(self):
-        data = {}
-        if task:
-            data['working'] = {}
-            data['working']['cwd'] = task.cwd
-            data['working']['cmd'] = task.cmd
-            data['working']['args'] = task.args
-
-        data['pending'] = []
-        for t in list(task_queue.queue):
-            i = {}
-            i['cwd'] = t.cwd
-            i['cmd'] = t.cmd
-            i['args'] = t.args
-            data['pending'].append(i)
-
+    def handle_dumpjson(self):
+        data = dump_queue()
         self.writejson(data)
+
+    def handle_dump(self):
+        if task:
+            self.writeline(str(task))
+
+        for t in list(task_queue.queue):
+            self.writeline(str(t))
 
     def handle_cmd(self, req):
         cmd = req['cmd']
@@ -98,15 +129,6 @@ def server_frontend():
         server.serve_forever()
 
 
-def print_task_status(task, status):
-    print('_______________________________________________________________________________')
-    print('['+ status +'] cwd:', task.cwd)
-    print('['+ status +'] cmd:', task.cmd)
-    for i in task.args:
-        print('['+ status +'] arg:', i)
-    print('⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻')
-
-
 def send_req(req):
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -122,14 +144,13 @@ def send_req(req):
 
             sock.shutdown(socket.SHUT_WR)
 
-            res = ''
+            res = b''
             while True:
-                data = sock.recv(1024).strip()
+                data = sock.recv(1024)
                 if not data: break
-                res += data.decode('utf-8')
+                res += data
 
-            res = json.loads(res)
-            print(json.dumps(res, indent=4))
+            print(res.decode('utf-8').strip())
 
             try:
                 sock.shutdown(socket.SHUT_RD)
@@ -159,16 +180,26 @@ def start():
         while True:
             task = task_queue.get()
             os.chdir(task.cwd)
-            print_task_status(task, 'working')
-            do_job(task.cmd, task.args)
-            print_task_status(task, 'finish')
+            task.status = 'working'
+            print(str(task))
+            res = do_job(task.cmd, task.args)
+            if res[0] == 'interrupted':
+                task.status = 'interrupted'
+                print(str(task))
+                break
+            else:
+                task.status = 'finish'
+                print(str(task))
+
             task = None
 
     except KeyboardInterrupt:
         log_error('KeyboardInterrupt')
-        while not task_queue.empty():
-            task = task_queue.get()
-            print_task_status(task, 'canceled')
+
+    while not task_queue.empty():
+        task = task_queue.get()
+        task.status = 'canceled'
+        print(str(task))
 
     return 1
 
@@ -181,6 +212,12 @@ def add_task(cmd, argv):
     send_req(req)
 
 
+def dumpjson():
+    req = {}
+    req['cmd'] = 'dumpjson'
+    send_req(req)
+
+
 def dump():
     req = {}
     req['cmd'] = 'dump'
@@ -190,25 +227,60 @@ def dump():
 def load():
     data = ''
     for line in sys.stdin:
-        data += line.rstrip()
+        data += line
 
     try:
         data = json.loads(data)
 
-        if 'working' in data:
-            w = data['working']
-            t = Task(w['cwd'], w['cmd'], w['args'])
-            task_queue.put(t)
-
-            for p in data['pending']:
-                t = Task(p['cwd'], p['cmd'], p['args'])
-                task_queue.put(t)
-
-        start()
-
     except json.decoder.JSONDecodeError:
         log_error('Invalid JSON string')
-        return 1
+        log_error('Parsing with alternative format')
+        return load_alternative(data)
+
+    if 'working' in data:
+        w = data['working']
+        t = Task(w['cwd'], w['cmd'], w['args'])
+        task_queue.put(t)
+
+        for p in data['pending']:
+            t = Task(p['cwd'], p['cmd'], p['args'])
+            task_queue.put(t)
+
+    start()
+
+
+def load_alternative(data):
+    cwd = None
+    cmd = None
+    args = []
+
+    def enqueue(cwd, cmd, args):
+        if not cwd: return
+        if not cmd: return
+        if not args: return
+
+        task_queue.put(Task(cwd, cmd, args))
+
+    for line in data.split('\n'):
+        line = line.rstrip()
+        m = re.match(r'^\[(?:working|pending|interrupted|canceled)\] ([^:]+):(.*)$', line)
+        if not m:
+            enqueue(cwd, cmd, args)
+            cwd = None
+            cmd = None
+            args = []
+
+        elif m.group(1) == 'cwd':
+            cwd = m.group(2)
+
+        elif m.group(1) == 'cmd':
+            cmd = m.group(2)
+
+        elif m.group(1) == 'arg':
+            args.append(m.group(2))
+
+    enqueue(cwd, cmd, args)
+    start()
 
 # -----------------------------------------------------------------------------
 # Public interface
