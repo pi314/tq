@@ -173,6 +173,9 @@ def start():
 
     try:
         while True:
+            if task_queue.empty():
+                print('[info] Task queue empty')
+
             task = task_queue.get()
             os.chdir(task.cwd)
             task.status = 'working'
