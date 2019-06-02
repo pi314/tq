@@ -66,8 +66,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             data['working']['args'] = task.args
 
         data['pending'] = []
-        while not task_queue.empty():
-            t = task_queue.get()
+        for t in list(task_queue.queue):
             i = {}
             i['cwd'] = t.cwd
             i['cmd'] = t.cmd
@@ -163,6 +162,7 @@ def start():
             print_task_status(task, 'working')
             do_job(task.cmd, task.args)
             print_task_status(task, 'finish')
+            task = None
 
     except KeyboardInterrupt:
         log_error('KeyboardInterrupt')
