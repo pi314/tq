@@ -1,5 +1,7 @@
 import os
 
+from threading import Thread
+
 from .utils import run
 
 
@@ -15,11 +17,20 @@ def pre(cmd, argv):
     return (cmd, ['-no-prompt'] + argv, False)
 
 
+def send_telegram_msg(cmd, argv, result, output):
+    run([
+        telegram_bot,
+        '\n'.join(['pwd: '+ os.getcwd(), cmd +' '+ result +':'] + argv)
+    ])
+
+
 def post(cmd, argv, result, output):
     try:
-        run([
-            telegram_bot,
-            '\n'.join(['pwd: '+ os.getcwd(), cmd +' '+ result +':'] + argv)
-        ])
+        if cmd.endswith('q'):
+            t = Thread(target=send_telegram_msg, args=(cmd, argv, result, output))
+            t.daemon = True
+            t.start()
+        else:
+            send_telegram_msg(cmd, argv, result, output)
     except KeyboardInterrupt:
         pass
