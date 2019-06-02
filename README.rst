@@ -19,15 +19,8 @@ Usage
 -------------------------------------------------------------------------------
 Assume this utility is called by / soft-linked to / aliased to ``d``,
 
-* ``d pushw`` - wait for previous existing ``d`` finishes before push
-* ``d wait`` - wait for all ``d`` processes to finish
-* ``d tickets`` - show all ``d`` ticket files
-
-All other commands are directly passed to ``drive``.
-
-
-TODO
-
-* ``d daemon`` - start a daemon for further ``pushq`` / ``pullq``
+* ``d queue`` - start a task queue for further ``pushq`` / ``pullq``
 * ``d pushq`` - put task to queue and exit
 * ``d pullq`` - put task to queue and exit
+
+All other commands are directly passed to ``drive``.
