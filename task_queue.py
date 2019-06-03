@@ -87,6 +87,8 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             self.handle_dumpjson()
         elif cmd == 'dump':
             self.handle_dump()
+        elif cmd == 'schedule_quit':
+            self.handle_schedule_quit()
         else:
             self.handle_cmd(req)
 
@@ -100,6 +102,10 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         for t in list(task_queue.queue):
             self.writeline(str(t))
+
+    def handle_schedule_quit(self):
+        task_queue.put(Task(None, 'quit', []))
+        self.writeresult('202 Accepted', '')
 
     def handle_cmd(self, req):
         cmd = req['cmd']
@@ -171,12 +177,19 @@ def start():
     t.daemon = True
     t.start()
 
+    ret = 0
+
     try:
         while True:
             if task_queue.empty():
                 print('[info] Task queue empty')
 
             task = task_queue.get()
+
+            if task.cmd == 'quit':
+                print('[info] quit')
+                break
+
             os.chdir(task.cwd)
             task.status = 'working'
             print(str(task))
@@ -184,7 +197,8 @@ def start():
             if res[0] == 'interrupted':
                 task.status = 'interrupted'
                 print(str(task))
-                break
+                ret = 1
+
             else:
                 task.status = 'finish'
                 print(str(task))
@@ -199,7 +213,7 @@ def start():
         task.status = 'canceled'
         print(str(task))
 
-    return 1
+    return ret
 
 
 def add_task(cmd, argv):
@@ -279,6 +293,12 @@ def load_alternative(data):
 
     enqueue(cwd, cmd, args)
     start()
+
+
+def schedule_quit():
+    req = {}
+    req['cmd'] = 'schedule_quit'
+    send_req(req)
 
 # -----------------------------------------------------------------------------
 # Public interface

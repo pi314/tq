@@ -20,7 +20,7 @@ def main():
     argv = sys.argv[1:]
 
     if cmd in ('queue', 'q'):
-        if not argv or argv[0] == 'start':
+        if not argv:
             return task_queue.start()
 
         elif argv[0] == 'dumpjson':
@@ -31,6 +31,9 @@ def main():
 
         elif argv[0] == 'load':
             return task_queue.load()
+
+        elif argv[0] == 'quit':
+            return task_queue.schedule_quit()
 
         else:
             log_error('Unknown command')
