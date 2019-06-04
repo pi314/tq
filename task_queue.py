@@ -198,6 +198,7 @@ def start():
                 task.status = 'interrupted'
                 print(str(task))
                 ret = 1
+                break
 
             else:
                 task.status = 'finish'
