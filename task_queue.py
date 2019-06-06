@@ -105,7 +105,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
     def handle_schedule_quit(self):
         task_queue.put(Task(None, 'quit', []))
-        self.writeresult('202 Accepted', '')
+        self.writeresult('202 Accepted', 'quit')
 
     def handle_cmd(self, req):
         cmd = req['cmd']
@@ -119,9 +119,13 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             self.writeresult('400 Bad Request', 'No arguments provided')
             return
 
+        elif type(args) == str:
+            self.writeresult('400 Bad Request', 'Arguments should be a list')
+            return
+
         task_queue.put(Task(cwd, cmd, args))
 
-        self.writeresult('202 Accepted', '')
+        self.writeresult('202 Accepted', ', '.join(args))
 
 
 def server_frontend():
@@ -218,11 +222,24 @@ def start():
 
 
 def add_task(cmd, argv):
-    req = {}
-    req['cwd'] = os.getcwd()
-    req['cmd'] = cmd
-    req['args'] = argv
-    send_req(req)
+    if sys.stdin.isatty():
+        req = {}
+        req['cwd'] = os.getcwd()
+        req['cmd'] = cmd
+        req['args'] = argv
+        send_req(req)
+
+    else:
+        files = []
+        for line in sys.stdin:
+            files.append(line.strip())
+
+        for pushee in files:
+            req = {}
+            req['cwd'] = os.getcwd()
+            req['cmd'] = cmd
+            req['args'] = [pushee]
+            send_req(req)
 
 
 def dumpjson():
@@ -239,8 +256,11 @@ def dump():
 
 def load():
     data = ''
-    for line in sys.stdin:
-        data += line
+    try:
+        for line in sys.stdin:
+            data += line
+    except KeyboardInterrupt:
+        return 1
 
     try:
         data = json.loads(data)

@@ -27,5 +27,7 @@ Assume this utility is called by / soft-linked to / aliased to ``d``,
 * ``d queue quit`` - put a "stop" task into queue
 * ``d pushq`` - put task to queue and exit
 * ``d pullq`` - put task to queue and exit
+* ``cat | d pullq`` - collect file names from stdin, every line is treated as a task
+* [TODO] ``d indexing`` - create two pure-text index files for remote and local content
 
 All other commands are directly passed to ``drive``.
