@@ -1,13 +1,27 @@
 import re
 import subprocess as sub
 import sys
-import os
 
+from os import getcwd
+from os.path import exists, isfile, join, dirname
 from subprocess import PIPE
-from datetime import datetime
-from os.path import exists, join
 
 from .chain import Chain
+
+
+telegram_bot = 'cychih_bot'
+
+
+def get_drive_root():
+    probe = getcwd()
+
+    while probe != '/':
+        if exists(join(probe, '.gd')) and isfile(join(probe, '.gd', 'credentials.json')):
+            return probe
+
+        probe = dirname(probe)
+
+    return None
 
 
 def log_info(*args, **kwargs):
@@ -39,5 +53,5 @@ def run(cmd, capture_output=False):
 def send_telegram_msg(cmd, argv, result, output):
     run([
         telegram_bot,
-        '\n'.join(['pwd: '+ os.getcwd(), cmd +' '+ result +':'] + argv)
+        '\n'.join(['pwd: '+ getcwd(), cmd +' '+ result +':'] + argv)
     ])

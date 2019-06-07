@@ -7,9 +7,6 @@ from .utils import run
 from .utils import send_telegram_msg
 
 
-telegram_bot = 'cychih_bot'
-
-
 def pre_dummy(cmd, argv):
     return (cmd, argv, False)
 

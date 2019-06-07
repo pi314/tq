@@ -4,6 +4,7 @@ from . import task_queue
 
 from .utils import (run, log_info, log_error)
 from .worker import do_job
+from .cmd_indexing import indexing
 
 
 def main():
@@ -35,9 +36,12 @@ def main():
             log_error('Unknown command')
             return 1
 
-    if cmd in ('pushq', 'pullq'):
+    elif cmd in ('pushq', 'pullq'):
         task_queue.add_task(cmd, argv)
         return
+
+    elif cmd == 'indexing':
+        return indexing(argv)
 
     try:
         return do_job(cmd, argv)[1]
