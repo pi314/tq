@@ -32,4 +32,6 @@ Assume this utility is called by / soft-linked to / aliased to ``d``,
 
   - Note: the usage and meaning of this command is different to ``drive index``
 
+* [TODO] ``d help``
+
 All other commands are directly passed to ``drive``.
