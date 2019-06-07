@@ -34,3 +34,10 @@ def run(cmd, capture_output=False):
         kwargs['stderr'] = PIPE
 
     return sub.run(map(str, cmd), **kwargs)
+
+
+def send_telegram_msg(cmd, argv, result, output):
+    run([
+        telegram_bot,
+        '\n'.join(['pwd: '+ os.getcwd(), cmd +' '+ result +':'] + argv)
+    ])

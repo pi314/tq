@@ -1,16 +1,12 @@
 import sys
 
-from .utils import (run, log_info, log_error)
+from . import task_queue
 
+from .utils import (run, log_info, log_error)
 from .worker import do_job
 
 
 def main():
-    global pre_cmd
-    global post_cmd
-
-    from . import task_queue
-
     sys.argv = sys.argv[1:]
 
     if len(sys.argv) == 0:
