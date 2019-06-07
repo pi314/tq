@@ -11,12 +11,16 @@ pre_cmd = {
         'list': pre_list,
         'push': pre_push,
         'pull': pre_push,
+        'pushq': pre_push,
+        'pullq': pre_push,
 }
 
 post_cmd = {
         'list': post_list,
         'push': post_push,
         'pull': post_push,
+        'pushq': post_push,
+        'pullq': post_push,
 }
 
 

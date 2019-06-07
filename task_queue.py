@@ -232,7 +232,9 @@ def add_task(cmd, argv):
     else:
         files = []
         for line in sys.stdin:
-            files.append(line.strip())
+            line = line.strip()
+            if not line: continue
+            files.append(line)
 
         for pushee in files:
             req = {}

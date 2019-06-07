@@ -40,7 +40,7 @@ def pre_push(cmd, argv):
             'pullq': 'pull',
             }.get(cmd, cmd)
 
-    return (cmd, ['-no-prompt'] + argv, False)
+    return (cmd, ['-no-prompt', '-exclude-ops', 'delete'] + argv, False)
 
 
 def post_push(cmd, argv, result, output):
