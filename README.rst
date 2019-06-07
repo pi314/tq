@@ -28,6 +28,8 @@ Assume this utility is called by / soft-linked to / aliased to ``d``,
 * ``d pushq`` - put task to queue and exit
 * ``d pullq`` - put task to queue and exit
 * ``cat | d pullq`` - collect file names from stdin, every line is treated as a task
-* [TODO] ``d indexing`` - create two pure-text index files for remote and local content
+* ``d index`` - create two pure-text index files for remote and local content
+
+  - Note: the usage and meaning of this command is different to ``drive index``
 
 All other commands are directly passed to ``drive``.

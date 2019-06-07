@@ -4,7 +4,7 @@ from . import task_queue
 
 from .utils import (run, log_info, log_error)
 from .worker import do_job
-from .cmd_indexing import indexing
+from .cmd_index import build_index
 
 
 def main():
@@ -40,8 +40,8 @@ def main():
         task_queue.add_task(cmd, argv)
         return
 
-    elif cmd == 'indexing':
-        return indexing(argv)
+    elif cmd == 'index':
+        return build_index(argv)
 
     try:
         return do_job(cmd, argv)[1]
