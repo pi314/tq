@@ -5,9 +5,14 @@ I want ``drive`` to
 
 * Send Telegram notification after ``push`` finished
 * Remap ``delete`` to ``trash`` so I won't accidentally destroy files
-* Queue my ``push`` commands and do it one-by-one
+* Queue my ``push`` and ``pull`` commands and do them one-by-one
 
 None of those should be made into ``drive``, so here the wrapper comes!
+
+Important note: Please treat it as unstable before I give it a version number.
+I've accidentally deleted my files more than one time, thankfully they are
+either in Google drive's trash can, or they are not important (Yes some of them
+are wiped out on my disk, before I push them to Google drive.)
 
 
 Installation
