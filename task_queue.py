@@ -155,7 +155,10 @@ def send_req(req):
                 if not data: break
                 res += data
 
-            print(res.decode('utf-8').strip())
+            try:
+                print(res.decode('utf-8').strip())
+            except (BrokenPipeError, IOError):
+                sys.stderr.close()
 
             try:
                 sock.shutdown(socket.SHUT_RD)
