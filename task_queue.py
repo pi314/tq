@@ -47,7 +47,7 @@ class Task:
     def __str__(self):
         ret = []
         ret.append('')
-        ret.append('['+ self.status +'] cwd:'+ self.cwd)
+        ret.append('['+ self.status +'] cwd:'+ str(self.cwd))
         ret.append('['+ self.status +'] cmd:'+ self.cmd)
         for i in self.args:
             ret.append('['+ self.status +'] arg:'+ i)
@@ -191,7 +191,10 @@ def start():
             task = task_queue.get()
 
             if task.cmd == 'quit':
-                print('[info] quit')
+                task.status = 'info'
+                print(str(task))
+                res = do_job(task.cmd, task.args)
+                task.status = 'finish'
                 break
 
             os.chdir(task.cwd)
@@ -290,9 +293,12 @@ def load_alternative(data):
     args = []
 
     def enqueue(cwd, cmd, args):
-        if not cwd: return
-        if not cmd: return
-        if not args: return
+        if cmd == 'quit':
+            pass
+
+        elif not cwd: return
+        elif not cmd: return
+        elif not args: return
 
         task_queue.put(Task(cwd, cmd, args))
 

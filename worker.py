@@ -13,6 +13,7 @@ pre_cmd = {
         'pull': pre_push,
         'pushq': pre_push,
         'pullq': pre_push,
+        'quit': pre_dummy,
 }
 
 post_cmd = {
@@ -21,10 +22,17 @@ post_cmd = {
         'pull': post_push,
         'pushq': post_push,
         'pullq': post_push,
+        'quit': post_push,
 }
 
 
 def do_job(cmd_user, argv_user):
+    if cmd_user == 'quit':
+        (cmd_exec, argv_exec, cap_out) = pre_cmd.get(cmd_user, pre_dummy)(cmd_user, argv_user.copy())
+        result = 'succeed'
+        post_cmd.get(cmd_user, post_dummy)(cmd_user, argv_user, result, ('', ''))
+        return (result, 0)
+
     try:
         result = 'canceled'
         (cmd_exec, argv_exec, cap_out) = pre_cmd.get(cmd_user, pre_dummy)(cmd_user, argv_user.copy())
