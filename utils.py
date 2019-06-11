@@ -53,5 +53,11 @@ def run(cmd, capture_output=False):
 def send_telegram_msg(cmd, argv, result, output):
     run([
         telegram_bot,
-        '\n'.join(['pwd: '+ getcwd(), cmd +' '+ result +':'] + argv)
+        '\n'.join(list(map(
+            lambda x: '['+result+'] '+ x,
+            [
+                'pwd: '+ getcwd(),
+                'cmd: '+ cmd
+                ] + list(map(lambda x: 'arg: '+ x, argv))
+        )))
     ])
