@@ -34,7 +34,7 @@ def do_job(task_user):
         pre_cmd.get(task_user.cmd, pre_dummy)(task_exec)
         task_user.status = 'succeed'
         post_cmd.get(task_user.cmd, post_dummy)(task_user, ('', ''))
-        return
+        return 0
 
     try:
         cap_out = False if not pre_cmd.get(task_user.cmd, pre_dummy)(task_exec) else True
@@ -46,5 +46,7 @@ def do_job(task_user):
 
     try:
         post_cmd.get(task_user.cmd, post_dummy)(task_user, p.stdout, p.stderr)
+        return p.returncode
     except UnboundLocalError:
         post_cmd.get(task_user.cmd, post_dummy)(task_user, '', '')
+        return 1

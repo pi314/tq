@@ -1,8 +1,10 @@
 import sys
+import os
 
 from . import task_queue
 
 from .utils import (run, log_error)
+from .task import Task
 from .worker import do_job
 from .cmd_index import build_index
 
@@ -44,7 +46,8 @@ def main():
         return build_index(argv)
 
     try:
-        return do_job(cmd, argv)[1]
+        task = Task(os.getcwd(), cmd, argv, 'working')
+        return do_job(task)
     except KeyboardInterrupt:
         log_error('KeyboardInterrupt')
         return 1
