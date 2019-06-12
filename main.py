@@ -2,7 +2,7 @@ import sys
 
 from . import task_queue
 
-from .utils import (run, log_info, log_error)
+from .utils import (run, log_error)
 from .worker import do_job
 from .cmd_index import build_index
 

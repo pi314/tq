@@ -3,6 +3,7 @@ from .hooks import pre_delete
 from .hooks import pre_list, post_list
 from .hooks import pre_push, post_push
 
+from .task import Task
 from .utils import run
 
 
@@ -26,25 +27,24 @@ post_cmd = {
 }
 
 
-def do_job(cmd_user, argv_user):
-    if cmd_user == 'quit':
-        (cmd_exec, argv_exec, cap_out) = pre_cmd.get(cmd_user, pre_dummy)(cmd_user, argv_user.copy())
-        result = 'succeed'
-        post_cmd.get(cmd_user, post_dummy)(cmd_user, argv_user, result, ('', ''))
-        return (result, 0)
+def do_job(task_user):
+    task_exec = task_user.copy()
+
+    if task_exec.cmd == 'quit':
+        pre_cmd.get(task_user.cmd, pre_dummy)(task_exec)
+        task_user.status = 'succeed'
+        post_cmd.get(task_user.cmd, post_dummy)(task_user, ('', ''))
+        return
 
     try:
-        result = 'canceled'
-        (cmd_exec, argv_exec, cap_out) = pre_cmd.get(cmd_user, pre_dummy)(cmd_user, argv_user.copy())
-        result = 'interrupted'
-        p = run(['drive', cmd_exec] + argv_exec, capture_output=cap_out)
-        result = 'succeed' if (p.returncode == 0) else 'failed'
+        cap_out = False if not pre_cmd.get(task_user.cmd, pre_dummy)(task_exec) else True
+        task_user.status = 'interrupted'
+        p = run(['drive', task_exec.cmd] + task_exec.args, capture_output=cap_out)
+        task_user.status = 'succeed' if (p.returncode == 0) else 'failed'
     except KeyboardInterrupt:
         pass
 
     try:
-        post_cmd.get(cmd_user, post_dummy)(cmd_user, argv_user, result, (p.stdout, p.stderr))
-        return (result, p.returncode)
+        post_cmd.get(task_user.cmd, post_dummy)(task_user, p.stdout, p.stderr)
     except UnboundLocalError:
-        post_cmd.get(cmd_user, post_dummy)(cmd_user, argv_user, result, ('', ''))
-        return (result, 1)
+        post_cmd.get(task_user.cmd, post_dummy)(task_user, '', '')

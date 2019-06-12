@@ -10,21 +10,22 @@ from threading import Thread
 
 from . import HOST, PORT
 
+from .task import Task
+from .utils import log_create, log_info, log_error
 from .worker import do_job
-from .utils import log_error
 
 
 task_queue = Queue()
-task = None
+current_task = None
 
 
 def dump_queue():
     data = {}
-    if task:
+    if current_task:
         data['working'] = {}
-        data['working']['cwd'] = task.cwd
-        data['working']['cmd'] = task.cmd
-        data['working']['args'] = task.args
+        data['working']['cwd'] = current_task.cwd
+        data['working']['cmd'] = current_task.cmd
+        data['working']['args'] = current_task.args
 
     data['pending'] = []
     for t in list(task_queue.queue):
@@ -35,24 +36,6 @@ def dump_queue():
         data['pending'].append(i)
 
     return data
-
-
-class Task:
-    def __init__(self, cwd, cmd, args):
-        self.cwd = cwd
-        self.cmd = cmd
-        self.args = args
-        self.status = 'pending'
-
-    def __str__(self):
-        ret = []
-        ret.append('')
-        ret.append('['+ self.status +'] cwd:'+ str(self.cwd))
-        ret.append('['+ self.status +'] cmd:'+ self.cmd)
-        for i in self.args:
-            ret.append('['+ self.status +'] arg:'+ i)
-
-        return '\n'.join(ret)
 
 
 class MyTCPHandler(socketserver.StreamRequestHandler):
@@ -97,8 +80,8 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         self.writejson(data)
 
     def handle_dump(self):
-        if task:
-            self.writeline(str(task))
+        if current_task:
+            self.writeline(str(current_task))
 
         for t in list(task_queue.queue):
             self.writeline(str(t))
@@ -171,14 +154,14 @@ def send_req(req):
                 pass
 
     except ConnectionRefusedError:
-        print('Task queue not running')
+        log_error('Task queue not running')
 
 
 # =============================================================================
 # Public interface
 # -----------------------------------------------------------------------------
 def start():
-    global task
+    global current_task
 
     t = Thread(target=server_frontend)
     t.daemon = True
@@ -186,43 +169,45 @@ def start():
 
     ret = 0
 
+    log_create()
+
     try:
         while True:
-            if task_queue.empty():
-                print('[info] Task queue empty')
+            current_task = task_queue.get()
 
-            task = task_queue.get()
-
-            if task.cmd == 'quit':
-                task.status = 'info'
-                print(str(task))
-                res = do_job(task.cmd, task.args)
-                task.status = 'finish'
+            if current_task.cmd == 'quit':
+                current_task.status = 'info'
+                log_info()
+                log_info(str(current_task))
+                do_job(current_task)
+                current_task.status = 'succeed'
                 break
 
-            os.chdir(task.cwd)
-            task.status = 'working'
-            print(str(task))
-            res = do_job(task.cmd, task.args)
-            if res[0] == 'interrupted':
-                task.status = 'interrupted'
-                print(str(task))
+            os.chdir(current_task.cwd)
+            current_task.status = 'working'
+            log_info()
+            log_info(str(current_task))
+            do_job(current_task)
+            log_info()
+            log_info(str(current_task))
+            if current_task.status == 'interrupted':
                 ret = 1
                 break
 
-            else:
-                task.status = 'finish'
-                print(str(task))
+            current_task = None
 
-            task = None
+            if task_queue.empty():
+                log_info()
+                log_info('[info] Task queue empty')
 
     except KeyboardInterrupt:
         log_error('KeyboardInterrupt')
 
     while not task_queue.empty():
-        task = task_queue.get()
-        task.status = 'canceled'
-        print(str(task))
+        current_task = task_queue.get()
+        current_task.status = 'canceled'
+        log_info()
+        log_info(str(current_task))
 
     return ret
 

@@ -7,49 +7,49 @@ from .utils import run
 from .utils import send_telegram_msg
 
 
-def pre_dummy(cmd, argv):
-    return (cmd, argv, False)
-
-
-def post_dummy(cmd, argv, *args):
+def pre_dummy(task):
     pass
 
 
-def pre_delete(cmd, argv):
+def post_dummy(*args):
+    pass
+
+
+def pre_delete(task):
+    task.cmd = 'trash'
     log_info('Remap "delete" to "trash"')
-    return ('trash', argv, False)
 
 
-def pre_list(cmd, argv):
-    return (cmd, argv, True)
+def pre_list(task):
+    return True
 
 
-def post_list(cmd, argv, result, output):
-    if output[1]:
-        log_error(output[1].decode('utf-8'), end="")
+def post_list(task, out, err):
+    if err:
+        log_error(err.decode('utf-8'), end="")
         return
 
-    for line in sorted(output[0].decode('utf-8').rstrip('\n').split('\n')):
+    for line in sorted(out.decode('utf-8').rstrip('\n').split('\n')):
         line = line.rstrip()
         print(line)
 
 
-def pre_push(cmd, argv):
-    cmd = {
+def pre_push(task):
+    task.cmd = {
             'pushq': 'push',
             'pullq': 'pull',
-            }.get(cmd, cmd)
+            }.get(task.cmd, task.cmd)
 
-    return (cmd, ['-no-prompt', '-exclude-ops', 'delete'] + argv, False)
+    task.args = ['-no-prompt', '-exclude-ops', 'delete'] + task.args
 
 
-def post_push(cmd, argv, result, output):
+def post_push(task, out, err):
     try:
-        if cmd.endswith('q'):
-            t = Thread(target=send_telegram_msg, args=(cmd, argv, result, output))
+        if task.cmd.endswith('q'):
+            t = Thread(target=send_telegram_msg, args=(task,))
             t.daemon = True
             t.start()
         else:
-            send_telegram_msg(cmd, argv, result, output)
+            send_telegram_msg(task)
     except KeyboardInterrupt:
         pass
