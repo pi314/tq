@@ -179,16 +179,16 @@ def start():
 
             if current_task.cmd == 'quit':
                 current_task.status = 'info'
-                log_info()
-                log_info(str(current_task))
+                print()
+                print(str(current_task))
                 do_job(current_task)
                 current_task.status = 'succeed'
                 break
 
             chdir(current_task.cwd)
             current_task.status = 'working'
-            log_info()
-            log_info(str(current_task))
+            print()
+            print(str(current_task))
             do_job(current_task)
             log_info()
             log_info(str(current_task))
@@ -199,8 +199,8 @@ def start():
             current_task = None
 
             if task_queue.empty():
-                log_info()
-                log_info('[info] Task queue empty')
+                print()
+                print('[info] Task queue empty')
 
     except KeyboardInterrupt:
         log_error('KeyboardInterrupt')
@@ -294,7 +294,7 @@ def load_alternative(data):
 
     for line in data.split('\n'):
         line = line.rstrip()
-        m = re.match(r'^\[(?:working|pending|interrupted|canceled)\] ([^:]+):(.*)$', line)
+        m = re.match(r'^\[(?:working|pending|interrupted|failed|canceled)\] ([^:]+):(.*)$', line)
         if not m:
             enqueue(cwd, cmd, args)
             cwd = None
