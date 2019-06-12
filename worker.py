@@ -33,7 +33,7 @@ def do_job(task_user):
     if task_exec.cmd == 'quit':
         pre_cmd.get(task_user.cmd, pre_dummy)(task_exec)
         task_user.status = 'succeed'
-        post_cmd.get(task_user.cmd, post_dummy)(task_user, ('', ''))
+        post_cmd.get(task_user.cmd, post_dummy)(task_user, '', '')
         return 0
 
     try:
