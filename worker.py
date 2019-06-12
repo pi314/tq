@@ -38,11 +38,11 @@ def do_job(task_user):
 
     try:
         cap_out = False if not pre_cmd.get(task_user.cmd, pre_dummy)(task_exec) else True
-        task_user.status = 'interrupted'
+        task_user.status = 'working'
         p = run(['drive', task_exec.cmd] + task_exec.args, capture_output=cap_out)
         task_user.status = 'succeed' if (p.returncode == 0) else 'failed'
     except KeyboardInterrupt:
-        pass
+        task_user.status = 'interrupted'
 
     try:
         post_cmd.get(task_user.cmd, post_dummy)(task_user, p.stdout, p.stderr)

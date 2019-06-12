@@ -42,7 +42,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
     def readline(self):
         return self.rfile.readline().strip().decode('utf-8')
 
-    def writeline(self, line):
+    def writeline(self, line=''):
         self.wfile.write((line.rstrip() + '\n').encode('utf-8'))
 
     def writejson(self, obj):
@@ -82,9 +82,11 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
     def handle_dump(self):
         if current_task:
             self.writeline(str(current_task))
+            self.writeline()
 
         for t in list(task_queue.queue):
             self.writeline(str(t))
+            self.writeline()
 
     def handle_schedule_quit(self, req):
         task_queue.put(Task(req.get('cwd', None), 'quit', []))
