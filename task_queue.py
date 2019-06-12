@@ -1,5 +1,4 @@
 import json
-import os
 import re
 import socket
 import socketserver
@@ -7,6 +6,7 @@ import sys
 
 from queue import Queue
 from threading import Thread
+from os import chdir, getcwd
 
 from . import HOST, PORT
 
@@ -71,7 +71,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         elif cmd == 'dump':
             self.handle_dump()
         elif cmd == 'schedule_quit':
-            self.handle_schedule_quit()
+            self.handle_schedule_quit(req)
         else:
             self.handle_cmd(req)
 
@@ -86,8 +86,8 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         for t in list(task_queue.queue):
             self.writeline(str(t))
 
-    def handle_schedule_quit(self):
-        task_queue.put(Task(None, 'quit', []))
+    def handle_schedule_quit(self, req):
+        task_queue.put(Task(req.get('cwd', None), 'quit', []))
         self.writeresult('202 Accepted', 'quit')
 
     def handle_cmd(self, req):
@@ -183,7 +183,7 @@ def start():
                 current_task.status = 'succeed'
                 break
 
-            os.chdir(current_task.cwd)
+            chdir(current_task.cwd)
             current_task.status = 'working'
             log_info()
             log_info(str(current_task))
@@ -215,7 +215,7 @@ def start():
 def add_task(cmd, argv):
     if sys.stdin.isatty():
         req = {}
-        req['cwd'] = os.getcwd()
+        req['cwd'] = getcwd()
         req['cmd'] = cmd
         req['args'] = argv
         send_req(req)
@@ -229,7 +229,7 @@ def add_task(cmd, argv):
 
         for pushee in files:
             req = {}
-            req['cwd'] = os.getcwd()
+            req['cwd'] = getcwd()
             req['cmd'] = cmd
             req['args'] = [pushee]
             send_req(req)
@@ -314,6 +314,7 @@ def load_alternative(data):
 
 def schedule_quit():
     req = {}
+    req['cwd'] = getcwd()
     req['cmd'] = 'schedule_quit'
     send_req(req)
 
