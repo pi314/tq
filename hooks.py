@@ -1,4 +1,4 @@
-import os
+import sys
 
 from os.path import basename
 from threading import Thread
@@ -59,14 +59,9 @@ def post_push(task, out, err):
 def pre_rename(task):
     skip = True
 
-    for idx, arg in enumerate(task.args):
-        if arg.startswith('-'):
-            continue
+    if len(task.args) != 2:
+        print('Usage:')
+        print('    d rename A B')
+        sys.exit(1)
 
-        if skip:
-            skip = False
-            continue
-
-        task.args[idx] = basename(task.args[idx])
-
-        print(str(task))
+    task.args[1] = basename(task.args[1])
