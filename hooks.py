@@ -1,5 +1,6 @@
 import os
 
+from os.path import basename
 from threading import Thread
 
 from .utils import log_info, log_error
@@ -53,3 +54,19 @@ def post_push(task, out, err):
             send_telegram_msg(task)
     except KeyboardInterrupt:
         pass
+
+
+def pre_rename(task):
+    skip = True
+
+    for idx, arg in enumerate(task.args):
+        if arg.startswith('-'):
+            continue
+
+        if skip:
+            skip = False
+            continue
+
+        task.args[idx] = basename(task.args[idx])
+
+        print(str(task))

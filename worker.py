@@ -2,6 +2,7 @@ from .hooks import pre_dummy, post_dummy
 from .hooks import pre_delete
 from .hooks import pre_list, post_list
 from .hooks import pre_push, post_push
+from .hooks import pre_rename
 
 from .task import Task
 from .utils import run
@@ -14,6 +15,7 @@ pre_cmd = {
         'pull': pre_push,
         'pushq': pre_push,
         'pullq': pre_push,
+        'rename': pre_rename,
         'quit': pre_dummy,
 }
 
