@@ -45,3 +45,5 @@ For ``push`` / ``pull`` / ``pushq`` / ``pullq`` / ``rename``, absolute paths wil
 translated to relative path from the google drive root folder.
 
 All other commands are directly passed to ``drive``.
+
+[TODO] integrate telegram API instead of calling external utility.
