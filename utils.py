@@ -7,8 +7,6 @@ from os.path import exists, isfile, join, dirname
 from subprocess import PIPE
 from datetime import datetime
 
-from .chain import Chain
-
 
 log_fname = None
 log_file = None

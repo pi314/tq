@@ -1,4 +1,4 @@
-class Chain(list):
+class Chain:
     def __init__(self, data):
         self.data = data
 
@@ -12,4 +12,7 @@ class Chain(list):
         return sorted(self.data)
 
     def list(self):
-        return self.data
+        return list(self.data)
+
+    def dict(self):
+        return dict(self.data)
