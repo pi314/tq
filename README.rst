@@ -32,11 +32,15 @@ Assume this utility is called by / soft-linked to / aliased to ``d``,
 * ``d queue quit`` - put a "stop" task into queue
 * ``d pushq`` - put task to queue and exit
 * ``d pullq`` - put task to queue and exit
+* ``cat | d pull`` - collect file names from stdin, every line is treated as a task
 * ``cat | d pullq`` - collect file names from stdin, every line is treated as a task
 * ``d index`` - create two pure-text index files for remote and local content
 
   - Note: the usage and meaning of this command is different to ``drive index``
 
 * [TODO] ``d help``
+
+For ``push`` / ``pull`` / ``pushq`` / ``pullq``, absolute paths will be
+translated to relative path from the google drive root folder.
 
 All other commands are directly passed to ``drive``.

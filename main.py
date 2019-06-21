@@ -38,16 +38,31 @@ def main():
             log_error('Unknown command')
             return 1
 
-    elif cmd in ('pushq', 'pullq'):
-        task_queue.add_task(cmd, argv)
-        return
-
     elif cmd == 'index':
         return build_index(argv)
 
+    task_list = []
+    if sys.stdin.isatty():
+        task_list = [Task(os.getcwd(), cmd, argv, 'working')]
+
+    else:
+        files = []
+        for line in sys.stdin:
+            line = line.strip()
+            if not line: continue
+            files.append(line)
+
+        for f in files:
+            task_list.append(Task(os.getcwd(), cmd, [f], 'working'))
+
     try:
-        task = Task(os.getcwd(), cmd, argv, 'working')
-        return do_job(task)
+        for t in task_list:
+            if t.cmd in ('pushq', 'pullq'):
+                task_queue.add_task(t)
+            else:
+                ret = do_job(t)
+                if ret:
+                    return ret
     except KeyboardInterrupt:
         log_error('KeyboardInterrupt')
         return 1

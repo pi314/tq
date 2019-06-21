@@ -214,27 +214,12 @@ def start():
     return ret
 
 
-def add_task(cmd, argv):
-    if sys.stdin.isatty():
-        req = {}
-        req['cwd'] = getcwd()
-        req['cmd'] = cmd
-        req['args'] = argv
-        send_req(req)
-
-    else:
-        files = []
-        for line in sys.stdin:
-            line = line.strip()
-            if not line: continue
-            files.append(line)
-
-        for pushee in files:
-            req = {}
-            req['cwd'] = getcwd()
-            req['cmd'] = cmd
-            req['args'] = [pushee]
-            send_req(req)
+def add_task(t):
+    req = {}
+    req['cwd'] = t.cwd
+    req['cmd'] = t.cmd
+    req['args'] = t.args
+    send_req(req)
 
 
 def dumpjson():

@@ -1,7 +1,7 @@
 from .hooks import pre_dummy, post_dummy
 from .hooks import pre_delete
 from .hooks import pre_list, post_list
-from .hooks import pre_push, post_push
+from .hooks import pre_push_pull, post_push_pull
 from .hooks import pre_rename
 
 from .task import Task
@@ -11,21 +11,21 @@ from .utils import run
 pre_cmd = {
         'delete': pre_delete,
         'list': pre_list,
-        'push': pre_push,
-        'pull': pre_push,
-        'pushq': pre_push,
-        'pullq': pre_push,
+        'push': pre_push_pull,
+        'pull': pre_push_pull,
+        'pushq': pre_push_pull,
+        'pullq': pre_push_pull,
         'rename': pre_rename,
         'quit': pre_dummy,
 }
 
 post_cmd = {
         'list': post_list,
-        'push': post_push,
-        'pull': post_push,
-        'pushq': post_push,
-        'pullq': post_push,
-        'quit': post_push,
+        'push': post_push_pull,
+        'pull': post_push_pull,
+        'pushq': post_push_pull,
+        'pullq': post_push_pull,
+        'quit': post_push_pull,
 }
 
 

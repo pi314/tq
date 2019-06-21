@@ -1,11 +1,12 @@
 import sys
 
-from os.path import basename
+from os.path import basename, join
 from threading import Thread
 
 from .utils import log_info, log_error
 from .utils import run
 from .utils import send_telegram_msg
+from .utils import get_drive_root
 
 
 def pre_dummy(task):
@@ -35,16 +36,23 @@ def post_list(task, out, err):
         print(line)
 
 
-def pre_push(task):
+def pre_push_pull(task):
     task.cmd = {
             'pushq': 'push',
             'pullq': 'pull',
             }.get(task.cmd, task.cmd)
 
-    task.args = ['-no-prompt', '-exclude-ops', 'delete'] + task.args
+    args = []
+    for a in task.args:
+        if a.startswith('/'):
+            args.append(join(get_drive_root(task.cwd), a[1:]))
+        else:
+            args.append(a)
+
+    task.args = ['-no-prompt', '-exclude-ops', 'delete'] + args
 
 
-def post_push(task, out, err):
+def post_push_pull(task, out, err):
     try:
         if task.cmd.endswith('q'):
             t = Thread(target=send_telegram_msg, args=(task,))

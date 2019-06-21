@@ -56,8 +56,8 @@ def log_error(*args, **kwargs):
 # =============================================================================
 
 
-def get_drive_root():
-    probe = getcwd()
+def get_drive_root(cwd=None):
+    probe = cwd if cwd else getcwd()
 
     while probe != '/':
         if exists(join(probe, '.gd')) and isfile(join(probe, '.gd', 'credentials.json')):
