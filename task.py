@@ -14,26 +14,38 @@ class MyOneWayLock:
 
 
 class Task:
-    def __init__(self, *args):
+    def __init__(self, cwd='', cmd='', args=[], block=False):
         now = datetime.now()
         self.tid = now.strftime('%Y%m%d_%H%M%S_') + '%06d'%(now.microsecond)
         self.lock = None
 
-        if isinstance(args[0], str):
-            self.cwd = args[0]
-            self.cmd = list(args[1])
+        self.cwd = cwd
+        self.cmd = cmd
+        self.args = list(args)
 
-        elif isinstance(args[0], dict):
-            d = args[0]
-            self.cwd = d['cwd']
-            self.cmd = d['cmd']
+        if block:
+            self.lock = MyOneWayLock()
 
-            if 'block' in d and d['block']:
-                self.lock = MyOneWayLock()
+        self.status = 'init'
+        self.ret = None
 
     def to_dict(self):
         ret = {}
         ret['tid'] = self.tid
         ret['cwd'] = self.cwd
         ret['cmd'] = self.cmd
+        ret['args'] = self.args
         return ret
+
+    def __str__(self):
+        s = []
+        s.append('[{}] tid: {}'.format(self.status, self.tid))
+        s.append('[{}] cwd: {}'.format(self.status, self.cwd))
+        s.append('[{}] cmd: {}'.format(self.status, self.cmd))
+        for i in self.args:
+            s.append('[{}] arg: {}'.format(self.status, i))
+
+        if self.ret is not None:
+            s.append('[{}] ret: {}'.format(self.status, self.ret))
+
+        return '\n'.join(s)

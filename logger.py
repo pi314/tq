@@ -45,19 +45,14 @@ def log_dict(j):
     log_write(json.dumps(j))
 
 
-def log_task_status(task, status, returncode=None):
+def log_task_status(task, returncode=None):
     e = task.to_dict()
-    e['status'] = status
-    if returncode is not None:
-        e['ret'] = returncode
+    e['status'] = task.status
+
+    if task.ret is not None:
+        e['ret'] = task.ret
 
     log_dict(e)
 
     print()
-    print('[{}] tid: {}'.format(status, task.tid))
-    print('[{}] cwd: {}'.format(status, task.cwd))
-    for i in task.cmd:
-        print('[{}] cmd: {}'.format(status, i))
-
-    if returncode is not None:
-        print('[{}] ret: {}'.format(status, returncode))
+    print(str(task))

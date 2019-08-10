@@ -1,3 +1,18 @@
+import subprocess as sub
+import sys
+
+from os import getcwd
+from subprocess import PIPE
+
+
+eff_cmd = {
+    'pushq': 'push',
+    'pullq': 'pull',
+    'pushw': 'push',
+    'pullw': 'pull',
+}
+
+
 def ask(prompt, given_options=''):
     '''
     ask(prompt)
@@ -44,3 +59,27 @@ def ask(prompt, given_options=''):
         return None
 
     return ret.lower()
+
+
+def run(cmd, capture_output=False):
+    kwargs = {
+        'stdout': sys.stdout,
+        'stderr': sys.stderr,
+    }
+    if capture_output:
+        kwargs['stdout'] = PIPE
+        kwargs['stderr'] = PIPE
+
+    return sub.run(map(str, cmd), **kwargs)
+
+
+def get_drive_root(cwd=None):
+    probe = cwd if cwd else getcwd()
+
+    while probe != '/':
+        if exists(join(probe, '.gd')) and isfile(join(probe, '.gd', 'credentials.json')):
+            return probe
+
+        probe = dirname(probe)
+
+    return None

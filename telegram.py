@@ -6,7 +6,7 @@ import json
 from queue import Queue
 
 from . import config
-from .utils import ask
+from . import utils
 
 
 runrunrun = True
@@ -47,7 +47,7 @@ def init_bot_id():
     bot_id = config.get('telegram', 'bot_id')
 
     if bot_id:
-        yn = ask('Override existing bot_id? {}'.format(bot_id), 'ny')
+        yn = utils.ask('Override existing bot_id? {}'.format(bot_id), 'ny')
         if not yn or yn == 'n':
             return bot_id
 
@@ -71,7 +71,7 @@ def init_token():
     token = config.get('telegram', 'token')
 
     if token:
-        yn = ask('Override existing token? {}'.format(token), 'ny')
+        yn = utils.ask('Override existing token? {}'.format(token), 'ny')
         if not yn or yn == 'n':
             return token
 
@@ -97,7 +97,7 @@ def init_chat_id():
     chat_id = config.get('telegram', 'chat_id')
 
     if chat_id:
-        yn = ask('Override existing chat_id? {}'.format(chat_id), 'ny')
+        yn = utils.ask('Override existing chat_id? {}'.format(chat_id), 'ny')
         if not yn or yn == 'n':
             return chat_id
 
@@ -171,13 +171,8 @@ def loop_stop():
     msg_queue.put(None)
 
 
-def notify_task(task, status):
-    msg = []
-    msg.append('[{}] cwd: {}'.format(status, task.cwd))
-    for i in task.cmd:
-        msg.append('[{}] cmd: {}'.format(status, i))
-
-    msg_queue.put('\n'.join(msg))
+def notify_task(task):
+    msg_queue.put(str(task))
 
 
 def notify_msg(text):

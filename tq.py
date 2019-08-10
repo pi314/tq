@@ -1,24 +1,13 @@
 import sys
 
 from . import config
-from . import drive_wrapper
-from . import tq
+from . import server
+from . import client
+from . import telegram
 
 
-def usage(cmd_name):
-    print('Usage:')
-    print('    tq')
-    print('    d')
-    print('    WIP')
-    return 1
-
-
-def main():
+def main(argv):
     config.load()
-
-    argv = sys.argv[:]
-
-    cmd_name = argv.pop(0)
 
     block = False
     notify = None
@@ -26,10 +15,6 @@ def main():
     while len(argv):
         if argv[0] in ('-h', '--help'):
             usage()
-
-        elif argv[0] in ('-m', '--mode'):
-            argv.pop(0)
-            mode = argv.pop(0)
 
         elif argv[0] in ('-b', '--block'):
             block = True
@@ -54,11 +39,8 @@ def main():
         telegram.enable()
         config.save()
 
-    if mode == 'tq':
-        tq.main(argv)
-
-    elif mode == 'd':
-        return drive_wrapper.main(argv)
+    if not len(argv):
+        return server.start()
 
     else:
-        return usage(cmd_name)
+        return client.submit_task(argv[0], argv[1:], block=block)

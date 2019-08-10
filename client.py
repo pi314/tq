@@ -3,6 +3,7 @@ import os
 import socket
 
 from . import HOST, PORT
+from . import drive_cmd
 
 
 def send_req(req):
@@ -49,10 +50,11 @@ def send_req(req):
     return {'status': 400, 'reason': 'WTF'}
 
 
-def submit_task(cmd, block):
+def submit_task(cmd, args, block):
     req = {}
     req['cwd'] = os.getcwd()
     req['cmd'] = cmd
+    req['args'] = args
     req['block'] = block
 
     try:
@@ -66,7 +68,10 @@ def submit_task(cmd, block):
         return
 
     if res and 200 <= res['status'] and res['status'] < 300:
-        os.execvp(cmd[0], cmd)
+        if cmd == 'd':
+            drive_cmd.run(args[0], args[1:])
+        else:
+            os.execvp(cmd, [cmd] + args)
 
     else:
         print(res)
