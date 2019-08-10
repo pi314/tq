@@ -6,7 +6,7 @@ from . import client
 from . import telegram
 
 
-def main(argv):
+def main(argv, block):
     if not len(argv):
         return server.start()
 

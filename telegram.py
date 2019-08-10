@@ -9,7 +9,6 @@ from . import config
 from . import utils
 
 
-runrunrun = True
 msg_queue = Queue()
 
 
@@ -155,7 +154,7 @@ def send_msg(text):
 
 
 def loop_start():
-    while runrunrun:
+    while True:
         msg = msg_queue.get()
 
         if msg is None:
@@ -165,9 +164,6 @@ def loop_start():
 
 
 def loop_stop():
-    global runrunrun
-
-    runrunrun = False
     msg_queue.put(None)
 
 

@@ -103,35 +103,32 @@ def start():
         while True:
             current_task = task_queue.get()
 
-            if not current_task.lock:
-                current_task.status = 'working'
-                log_task_status(current_task)
-                telegram.notify_task(current_task)
-
             if current_task.cmd == 'quit':
                 current_task.status = 'succeed'
                 log_task_status(current_task)
                 telegram.notify_task(current_task)
+                break
 
-            elif current_task.lock:
+            if current_task.lock:
                 current_task.lock.notify()
                 current_task.status = 'unblocked'
                 log_task_status(current_task)
                 telegram.notify_task(current_task)
+                continue
 
+            current_task.status = 'working'
+            log_task_status(current_task)
+            telegram.notify_task(current_task)
+
+            os.chdir(current_task.cwd)
+            if current_task.cmd == 'd':
+                drive_cmd.run(current_task.args[0], current_task.args[1:])
             else:
-                os.chdir(current_task.cwd)
-                if current_task.cmd == 'd':
-                    drive_cmd.run(current_task.args[0], current_task.args[1:])
-                else:
-                    p = sub.run([current_task.cmd] + current_task.args)
-                    current_task.status = 'failed' if p.returncode else 'succeed'
-                    current_task.ret = p.returncode
-                    log_task_status(current_task)
-                    telegram.notify_task(current_task)
-
-            if current_task.cmd == 'quit':
-                break
+                p = sub.run([current_task.cmd] + current_task.args)
+                current_task.status = 'failed' if p.returncode else 'succeed'
+                current_task.ret = p.returncode
+                log_task_status(current_task)
+                telegram.notify_task(current_task)
 
             current_task = None
 

@@ -55,7 +55,7 @@ def main():
         config.save()
 
     if mode == 'tq':
-        tq.main(argv)
+        tq.main(argv, block=block)
 
     elif mode == 'd':
         return drive_wrapper.main(argv)
