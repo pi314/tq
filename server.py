@@ -146,7 +146,9 @@ def start():
 
                 os.chdir(current_task.cwd)
                 if current_task.cmd == 'd':
-                    drive_cmd.run(current_task.args[0], current_task.args[1:])
+                    ret = drive_cmd.run(current_task.args[0], current_task.args[1:])
+                    current_task.status = 'succeed' if (ret == 0) else 'failed'
+                    log_task_status(current_task)
                 else:
                     p = sub.run([current_task.cmd] + current_task.args)
                     current_task.status = 'failed' if p.returncode else 'succeed'
