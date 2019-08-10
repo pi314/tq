@@ -5,6 +5,8 @@ import socket
 from . import HOST, PORT
 from . import drive_cmd
 
+from .task import Task
+
 
 def send_req(req):
     try:
@@ -64,7 +66,14 @@ def submit_task(cmd, args, block):
         return 1
 
     if not block:
-        print(res)
+        if cmd == 'dump':
+            for i in res.get('data', []):
+                t = Task(cwd=i['cwd'], cmd=i['cmd'], args=i['args'])
+                t.status = i['status']
+                print()
+                print(str(t))
+        else:
+            print(res)
         return
 
     if res and 200 <= res['status'] and res['status'] < 300:

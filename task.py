@@ -14,9 +14,11 @@ class MyOneWayLock:
 
 
 class Task:
-    def __init__(self, cwd='', cmd='', args=[], block=False):
+    def __init__(self, tid=None, cwd='', cmd='', args=[], block=False):
         now = datetime.now()
-        self.tid = now.strftime('%Y%m%d_%H%M%S_') + '%06d'%(now.microsecond)
+        if not tid:
+            self.tid = now.strftime('%Y%m%d_%H%M%S_') + '%06d'%(now.microsecond)
+
         self.lock = None
 
         self.cwd = cwd
@@ -32,9 +34,11 @@ class Task:
     def to_dict(self):
         ret = {}
         ret['tid'] = self.tid
+        ret['status'] = self.status
         ret['cwd'] = self.cwd
         ret['cmd'] = self.cmd
         ret['args'] = self.args
+        ret['ret'] = self.ret
         return ret
 
     def __str__(self):

@@ -17,6 +17,7 @@ from .logger import log_create, log_task_status, log_dict, log_info
 
 
 task_queue = Queue()
+current_task = None
 
 
 class MyTCPHandler(socketserver.StreamRequestHandler):
@@ -45,6 +46,10 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
     def handle(self):
         try:
             req = json.loads(''.join(self.readlines()))
+            if req['cmd'] == 'dump':
+                self.handle_dump()
+                return
+
             t = Task(cwd=req['cwd'], cmd=req['cmd'], args=req['args'], block=req.get('block', None))
             if t.lock:
                 t.status = 'blocking'
@@ -67,6 +72,23 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         else:
             self.writeresult(202, 'Accepted')
 
+    def handle_dump(self):
+        res = {}
+        res['status'] = 200
+        res['reason'] = 'OK'
+
+        data = []
+
+        if current_task:
+            data.append(current_task.to_dict())
+
+        for t in list(task_queue.queue):
+            data.append(t.to_dict())
+
+        res['data'] = data
+
+        self.writejson(res)
+
 
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     pass
@@ -79,6 +101,8 @@ def server_frontend():
 
 
 def start():
+    global current_task
+
     socketserver.TCPServer.allow_reuse_address = True
     server = ThreadedTCPServer((HOST, PORT), MyTCPHandler)
     t = Thread(target=server.serve_forever)
