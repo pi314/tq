@@ -25,7 +25,7 @@ def main():
 
     while len(argv):
         if argv[0] in ('-h', '--help'):
-            usage()
+            return usage(cmd_name)
 
         elif argv[0] in ('-m', '--mode'):
             argv.pop(0)

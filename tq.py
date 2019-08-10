@@ -7,38 +7,6 @@ from . import telegram
 
 
 def main(argv):
-    config.load()
-
-    block = False
-    notify = None
-
-    while len(argv):
-        if argv[0] in ('-h', '--help'):
-            usage()
-
-        elif argv[0] in ('-b', '--block'):
-            block = True
-            argv.pop(0)
-
-        elif argv[0] in ('-t', '--telegram'):
-            notify = True
-            argv.pop(0)
-
-        elif argv[0] in ('-T', '--no-telegram'):
-            notify = False
-            argv.pop(0)
-
-        else:
-            break
-
-    if notify is not None:
-        config.set('telegram', 'enable', notify)
-        config.save()
-
-    if notify:
-        telegram.enable()
-        config.save()
-
     if not len(argv):
         return server.start()
 
