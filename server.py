@@ -114,21 +114,21 @@ def start():
                 current_task.status = 'unblocked'
                 log_task_status(current_task)
                 telegram.notify_task(current_task)
-                continue
 
-            current_task.status = 'working'
-            log_task_status(current_task)
-            telegram.notify_task(current_task)
-
-            os.chdir(current_task.cwd)
-            if current_task.cmd == 'd':
-                drive_cmd.run(current_task.args[0], current_task.args[1:])
             else:
-                p = sub.run([current_task.cmd] + current_task.args)
-                current_task.status = 'failed' if p.returncode else 'succeed'
-                current_task.ret = p.returncode
+                current_task.status = 'working'
                 log_task_status(current_task)
                 telegram.notify_task(current_task)
+
+                os.chdir(current_task.cwd)
+                if current_task.cmd == 'd':
+                    drive_cmd.run(current_task.args[0], current_task.args[1:])
+                else:
+                    p = sub.run([current_task.cmd] + current_task.args)
+                    current_task.status = 'failed' if p.returncode else 'succeed'
+                    current_task.ret = p.returncode
+                    log_task_status(current_task)
+                    telegram.notify_task(current_task)
 
             current_task = None
 
