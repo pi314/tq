@@ -3,7 +3,6 @@ import os
 import socket
 
 from . import HOST, PORT
-from . import drive_cmd
 
 from .task import Task
 
@@ -52,12 +51,17 @@ def send_req(req):
     return {'status': 400, 'reason': 'WTF'}
 
 
-def submit_task(cmd, args, block):
+def submit_task(args):
     req = {}
     req['cwd'] = os.getcwd()
-    req['cmd'] = cmd
-    req['args'] = args
-    req['block'] = block
+    if args.dump:
+        req['cmd'] = 'dump'
+        req['args'] = []
+    else:
+        req['cmd'] = args.cmd[0]
+        req['args'] = args.cmd[1:]
+
+    req['block'] = args.block
 
     try:
         res = send_req(req)
@@ -65,8 +69,8 @@ def submit_task(cmd, args, block):
         print('KeyboardInterrupt')
         return 1
 
-    if not block:
-        if cmd == 'dump':
+    if not args.block:
+        if args.dump:
             for i in res.get('data', []):
                 t = Task(cwd=i['cwd'], cmd=i['cmd'], args=i['args'])
                 t.status = i['status']
@@ -77,10 +81,10 @@ def submit_task(cmd, args, block):
         return
 
     if res and 200 <= res['status'] and res['status'] < 300:
-        if cmd == 'd':
-            return drive_cmd.run(args[0], args[1:])[1]
+        if args.cmd[0] == 'd':
+            return 0
         else:
-            os.execvp(cmd, [cmd] + args)
+            os.execvp(args.cmd[0], args.cmd)
 
     else:
         print(res)

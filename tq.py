@@ -4,45 +4,29 @@ from . import config
 from . import server
 from . import client
 from . import telegram
+from . import logger
 
 
-def main(argv):
-    block = False
-    notify = None
-
-    while len(argv):
-        if argv[0] in ('-b', '--block'):
-            block = True
-            argv.pop(0)
-
-        elif argv[0] in ('-t', '--telegram'):
-            notify = True
-            argv.pop(0)
-
-        elif argv[0] in ('-T', '--no-telegram'):
-            notify = False
-            argv.pop(0)
-
-        else:
-            break
-
-    if notify is not None:
-        config.set('telegram', 'enable', notify)
+def main(args):
+    if args.telegram is not None:
+        config.set('telegram', 'enable', args.telegram)
         config.save()
 
-    if notify:
+    if args.telegram:
         telegram.enable()
         config.save()
 
-    if not len(argv):
+    if args.load:
+        return server.load(args.dry)
+
+    if args.dump:
+        return client.submit_task(args)
+
+    if not len(args.cmd):
         return server.start()
 
-    elif argv[0] == 'load':
-        dry = False
-        if len(argv) >= 2 and argv[1] == '-n':
-            dry = True
+    if len(args.cmd) and args.cmd[0] == 'd':
+        logger.log_error('Use sub-command "d" instead')
+        return 1
 
-        return server.load(dry)
-
-    else:
-        return client.submit_task(argv[0], argv[1:], block=block)
+    return client.submit_task(args)

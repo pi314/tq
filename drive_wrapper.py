@@ -4,19 +4,19 @@ from . import drive_index
 from . import utils
 
 
-def main(argv):
-    if len(argv) == 0:
+def main(args):
+    if len(args.cmd) == 0:
         exit(utils.run(['drive']).returncode)
 
-    d_cmd = argv.pop(0)
+    d_cmd = args.cmd[0]
 
     if d_cmd == 'index':
-        return drive_index.main(argv)
+        return drive_index.main(args.cmd[1:])
 
     if d_cmd in ('pushq', 'pullq'):
-        return client.submit_task('d', [d_cmd] + argv, block=False)
+        return client.submit_task('d', [d_cmd] + args.cmd[1:], block=False)
 
     if d_cmd in ('pushw', 'pullw'):
-        return client.submit_task('d', [d_cmd] + argv, block=True)
+        client.submit_task('d', [d_cmd] + args.cmd[1:], block=True)
 
-    return drive_cmd.run(d_cmd, argv)[1]
+    return drive_cmd.run(d_cmd, args.cmd[1:])[1]

@@ -1,11 +1,11 @@
+import argparse
 import re
 import subprocess as sub
 
 from os import getcwd
 from os import walk
-from os.path import join, exists, dirname, isfile
+from os.path import join
 from threading import Thread
-from argparse import Namespace
 
 from .logger import log_error
 from .utils import get_drive_root
@@ -92,27 +92,31 @@ def index_remote(params):
 
 
 def main(argv):
-    params = Namespace()
-    params.all = True
-    params.local = False
-    params.remote = False
-    params.depth = 0
+    parser = argparse.ArgumentParser(prog='dindex',
+            description='d sub-command - index')
 
-    while len(argv):
-        arg = argv.pop(0)
-        if arg == 'local':
-            params.all = False
-            params.local = True
+    parser.add_argument('-depth', default=0, type=int,
+            help='index depth')
 
-        elif arg == 'remote':
-            params.all = False
-            params.remote = True
+    parser.add_argument('target',
+            nargs='?',
+            choices=('all', 'local', 'remote'),
+            default='all',
+            help='index local, remote or both')
 
-        elif arg == '-depth':
-            params.depth = int(argv.pop(0))
+    parser.set_defaults(local=False, remote=False)
 
-        else:
-            log_error('Unknown argument:', arg)
+    params = parser.parse_args(argv)
+
+    if params.target == 'all':
+        params.local = True
+        params.remote = True
+
+    elif params.target == 'local':
+        params.local = True
+
+    elif params.target == 'remote':
+        params.remote = True
 
     params.cwd = getcwd()
     params.root = get_drive_root()
@@ -130,12 +134,12 @@ def main(argv):
     t_local = None
     t_remote = None
 
-    if params.all or params.local:
+    if params.local:
         t_local = Thread(target=index_local, args=(params,))
         t_local.daemon = True
         t_local.start()
 
-    if params.all or params.remote:
+    if params.remote:
         t_remote = Thread(target=index_remote, args=(params,))
         t_remote.daemon = True
         t_remote.start()
