@@ -8,8 +8,8 @@ from . import tq
 def usage(cmd_name):
     print('Usage:')
     print('    tq')
+    print('    tq load [-n]')
     print('    d')
-    print('    WIP')
     return 1
 
 

@@ -9,6 +9,7 @@ from queue import Queue
 from threading import Thread
 
 from . import HOST, PORT
+from . import config
 from . import drive_cmd
 from . import telegram
 
@@ -146,8 +147,7 @@ def start():
 
                 os.chdir(current_task.cwd)
                 if current_task.cmd == 'd':
-                    ret = drive_cmd.run(current_task.args[0], current_task.args[1:])
-                    current_task.status = 'succeed' if (ret == 0) else 'failed'
+                    (current_task.status, ret) = drive_cmd.run(current_task.args[0], current_task.args[1:])
                     log_task_status(current_task)
                 else:
                     p = sub.run([current_task.cmd] + current_task.args)
@@ -178,3 +178,36 @@ def start():
     t2.join()
 
     return ret
+
+
+def load(dry):
+    acc_log = {}
+
+    fname = config.get('log', 'filename')
+    with open(fname) as f:
+        for line in f:
+            try:
+                log_entry = json.loads(line)
+            except json.decoder.JSONDecodeError:
+                pass
+
+            if 'tid' in log_entry and 'status' in log_entry:
+                acc_log[log_entry['tid']] = log_entry
+
+    acc_log = dict(filter(lambda x: x[1]['status'] not in ('failed', 'succeed', 'blocking', 'unblocked'), acc_log.items()))
+
+    for tid in sorted(acc_log):
+        e = acc_log[tid]
+        t = Task(tid=e['tid'], cwd=e['cwd'], cmd=e['cmd'], args=e['args'])
+        t.status = 'pending'
+        task_queue.put(t)
+
+    if dry:
+        while not task_queue.empty():
+            t = task_queue.get()
+            print()
+            print(t)
+
+        return
+
+    return start()

@@ -20,6 +20,10 @@ def load():
         config['telegram'] = {}
         config['telegram']['enable'] = str(False)
 
+    if 'log' not in config.sections():
+        config['log'] = {}
+        config['log']['filename'] = 'tq.log'
+
     dirty = False
 
 

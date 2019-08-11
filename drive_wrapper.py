@@ -19,4 +19,4 @@ def main(argv):
     if d_cmd in ('pushw', 'pullw'):
         return client.submit_task('d', [d_cmd] + argv, block=True)
 
-    return drive_cmd.run(d_cmd, argv)
+    return drive_cmd.run(d_cmd, argv)[1]

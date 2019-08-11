@@ -78,7 +78,7 @@ def submit_task(cmd, args, block):
 
     if res and 200 <= res['status'] and res['status'] < 300:
         if cmd == 'd':
-            drive_cmd.run(args[0], args[1:])
+            return drive_cmd.run(args[0], args[1:])[1]
         else:
             os.execvp(cmd, [cmd] + args)
 

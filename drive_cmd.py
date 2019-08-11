@@ -23,11 +23,10 @@ def run(cmd, args):
         task_user.status = 'succeed' if (p.returncode == 0) else 'failed'
     except KeyboardInterrupt:
         task_user.status = 'interrupted'
-        pass
 
     try:
         hook_cbs.get('post_' + task_exec.cmd, lambda *x: None)(task_user, p.stdout, p.stderr)
-        return p.returncode
+        return (task_user.status, p.returncode)
     except UnboundLocalError:
         hook_cbs.get('post_' + task_exec.cmd, lambda *x: None)(task_user, '', '')
-        return 1
+        return (task_user.status, 1)

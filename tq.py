@@ -37,5 +37,12 @@ def main(argv):
     if not len(argv):
         return server.start()
 
+    elif argv[0] == 'load':
+        dry = False
+        if len(argv) >= 2 and argv[1] == '-n':
+            dry = True
+
+        return server.load(dry)
+
     else:
         return client.submit_task(argv[0], argv[1:], block=block)

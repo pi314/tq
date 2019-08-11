@@ -16,7 +16,9 @@ class MyOneWayLock:
 class Task:
     def __init__(self, tid=None, cwd='', cmd='', args=[], block=False):
         now = datetime.now()
-        if not tid:
+        if tid:
+            self.tid = tid
+        else:
             self.tid = now.strftime('%Y%m%d_%H%M%S_') + '%06d'%(now.microsecond)
 
         self.lock = None
