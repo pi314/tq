@@ -7,6 +7,7 @@ import subprocess as sub
 from datetime import datetime
 from queue import Queue
 from threading import Thread
+from os.path import exists
 
 from . import HOST, PORT
 from . import config
@@ -14,7 +15,7 @@ from . import drive_cmd
 from . import telegram
 
 from .task import Task
-from .logger import log_create, log_task_status, log_dict, log_info
+from .logger import log_create, log_task_status, log_dict, log_info, log_error
 
 
 task_queue = Queue()
@@ -105,7 +106,15 @@ def start():
     global current_task
 
     socketserver.TCPServer.allow_reuse_address = True
-    server = ThreadedTCPServer((HOST, PORT), MyTCPHandler)
+    try:
+        server = ThreadedTCPServer((HOST, PORT), MyTCPHandler)
+    except OSError as e:
+        if e.errno == 48:
+            log_error(e)
+            return 1
+
+        raise e
+
     t = Thread(target=server.serve_forever)
     t.daemon = True
     t.start()
@@ -184,6 +193,9 @@ def load(dry):
     acc_log = {}
 
     fname = config.get('log', 'filename')
+    if not exists(fname):
+        return start()
+
     with open(fname) as f:
         for line in f:
             try:

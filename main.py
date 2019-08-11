@@ -32,7 +32,7 @@ def main():
             break
 
     if mode == 'tq':
-        tq.main(argv)
+        return tq.main(argv)
 
     elif mode == 'd':
         return drive_wrapper.main(argv)
