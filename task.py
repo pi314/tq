@@ -1,18 +1,57 @@
+from datetime import datetime
+from queue import Queue
+
+
+class MyOneWayLock:
+    def __init__(self):
+        self.q = Queue()
+
+    def wait(self):
+        self.q.get()
+
+    def notify(self):
+        self.q.put(0)
+
+
 class Task:
-    def __init__(self, cwd, cmd, args, status='pending'):
+    def __init__(self, tid=None, cwd='', cmd='', args=[], block=False):
+        now = datetime.now()
+        if tid:
+            self.tid = tid
+        else:
+            self.tid = now.strftime('%Y%m%d_%H%M%S_') + '%06d'%(now.microsecond)
+
+        self.lock = None
+
         self.cwd = cwd
         self.cmd = cmd
         self.args = list(args)
-        self.status = status
+
+        if block:
+            self.lock = MyOneWayLock()
+
+        self.status = 'init'
+        self.ret = None
+
+    def to_dict(self):
+        ret = {}
+        ret['tid'] = self.tid
+        ret['status'] = self.status
+        ret['cwd'] = self.cwd
+        ret['cmd'] = self.cmd
+        ret['args'] = self.args
+        ret['ret'] = self.ret
+        return ret
 
     def __str__(self):
-        ret = []
-        ret.append('['+ self.status +'] cwd:'+ str(self.cwd))
-        ret.append('['+ self.status +'] cmd:'+ self.cmd)
+        s = []
+        s.append('[{}] tid: {}'.format(self.status, self.tid))
+        s.append('[{}] cwd: {}'.format(self.status, self.cwd))
+        s.append('[{}] cmd: {}'.format(self.status, self.cmd))
         for i in self.args:
-            ret.append('['+ self.status +'] arg:'+ i)
+            s.append('[{}] arg: {}'.format(self.status, i))
 
-        return '\n'.join(ret)
+        if self.ret is not None:
+            s.append('[{}] ret: {}'.format(self.status, self.ret))
 
-    def copy(self):
-        return Task(self.cwd, self.cmd, self.args, self.status)
+        return '\n'.join(s)

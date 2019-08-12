@@ -1,17 +1,16 @@
 import sys
 
 from os.path import basename, join
-from threading import Thread
 
-from .utils import log_info, log_error
-from .utils import run
-from .utils import send_telegram_msg
+from . import telegram
+
+from .logger import log_error
 from .utils import get_drive_root
 
 
 def pre_delete(task):
     task.cmd = 'trash'
-    log_info('Remap "delete" to "trash"')
+    print('Remap "delete" to "trash"')
 
 
 def pre_list(task):
@@ -29,11 +28,6 @@ def post_list(task, out, err):
 
 
 def pre_push(task):
-    task.cmd = {
-            'pushq': 'push',
-            'pullq': 'pull',
-            }.get(task.cmd, task.cmd)
-
     args = []
     for a in task.args:
         if a.startswith('/'):
@@ -45,29 +39,14 @@ def pre_push(task):
 
 
 def post_push(task, out, err):
-    try:
-        if task.cmd.endswith('q'):
-            t = Thread(target=send_telegram_msg, args=(task,))
-            t.daemon = True
-            t.start()
-        else:
-            send_telegram_msg(task)
-    except KeyboardInterrupt:
-        pass
+    telegram.send_msg(str(task))
 
-pre_pushq = pre_push
-post_pushq = post_push
 
 pre_pull = pre_push
 post_pull = post_push
 
-pre_pullq = pre_pull
-post_pullq = post_pull
-
 
 def pre_rename(task):
-    skip = True
-
     if len(task.args) != 2:
         print('Usage:')
         print('    d rename A B')

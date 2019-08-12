@@ -1,68 +1,56 @@
+import argparse
 import sys
-import os
 
-from . import task_queue
-
-from .utils import (run, log_error)
-from .task import Task
-from .worker import do_job
-from .cmd_index import build_index
+from . import config
+from . import drive_wrapper
+from . import tq
 
 
 def main():
-    sys.argv = sys.argv[1:]
+    parser = argparse.ArgumentParser(prog='dpush',
+            description='A Task Queue with Built-in Wrapper to drive')
+    parser.set_defaults(dump=False, block=False)
 
-    if len(sys.argv) == 0:
-        exit(run(['drive']).returncode)
+    subparsers = parser.add_subparsers(title='subcommands')
 
-    cmd = sys.argv[0]
-    argv = sys.argv[1:]
+    parser_d = subparsers.add_parser('d', help='d mode - Wrapper to drive')
+    parser_d.set_defaults(mode='d')
+    parser_d.set_defaults(subcmd=drive_wrapper.main)
 
-    if cmd in ('queue', 'q'):
-        if not argv:
-            return task_queue.start()
+    parser_d.add_argument('cmd', nargs=argparse.REMAINDER,
+            help='drive/d command')
 
-        elif argv[0] == 'dumpjson':
-            return task_queue.dumpjson()
 
-        elif argv[0] == 'dump':
-            return task_queue.dump()
+    parser_tq = subparsers.add_parser('tq', help='tq mode - Built-in task queue')
+    parser_tq.set_defaults(mode='tq')
+    parser_tq.set_defaults(subcmd=tq.main)
 
-        elif argv[0] == 'load':
-            return task_queue.load()
+    parser_tq.add_argument('-b', '--block', action='store_true', dest='block',
+            help='block and wait instead of put task into queue')
 
-        elif argv[0] == 'quit':
-            return task_queue.schedule_quit()
+    parser_tq.add_argument('-t', '--telegram', action='store_true', dest='telegram',
+            help='enable telegram notification (configuration persists)')
 
-        else:
-            log_error('Unknown command')
-            return 1
+    parser_tq.set_defaults(telegram=None)
+    parser_tq.add_argument('-T', '--no-telegram', action='store_false', dest='telegram',
+            help='disable telegram notification (configuration persists)')
 
-    elif cmd == 'index':
-        return build_index(argv)
+    parser_tq.add_argument('-l', '--load', action='store_true', dest='load',
+            help='load unfinished tasks from tq.log')
 
-    task_list = []
-    if sys.stdin.isatty():
-        task_list = [Task(os.getcwd(), cmd, argv, 'working')]
+    parser_tq.add_argument('-n', '--dry', action='store_true', dest='dry',
+            help='show actions and finish without actually running')
 
-    else:
-        files = []
-        for line in sys.stdin:
-            line = line.strip()
-            if not line: continue
-            files.append(line)
+    parser_tq.add_argument('-d', '--dump', action='store_true', dest='dump',
+            help='show current content of task queue')
 
-        for f in files:
-            task_list.append(Task(os.getcwd(), cmd, [f], 'working'))
+    parser_tq.add_argument('cmd', nargs=argparse.REMAINDER,
+            help='shell command to be queued into tq')
 
-    try:
-        for t in task_list:
-            if t.cmd in ('pushq', 'pullq'):
-                task_queue.add_task(t)
-            else:
-                ret = do_job(t)
-                if ret:
-                    return ret
-    except KeyboardInterrupt:
-        log_error('KeyboardInterrupt')
-        return 1
+    args = parser.parse_args()
+
+    print(args)
+
+    config.load()
+
+    return args.subcmd(args)

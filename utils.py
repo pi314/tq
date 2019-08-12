@@ -1,69 +1,65 @@
-import re
 import subprocess as sub
 import sys
 
 from os import getcwd
-from os.path import exists, isfile, join, dirname
+from os.path import join, exists, dirname, isfile
 from subprocess import PIPE
-from datetime import datetime
 
 
-log_fname = None
-log_file = None
-log_cwd = None
-
-telegram_bot = 'cychih_bot'
-
-
-# =============================================================================
-# Log utility
-# -----------------------------------------------------------------------------
-def log_create():
-    global log_fname
-    global log_cwd
-
-    now = datetime.now()
-    log_fname = 'dqueue.' + now.strftime('%Y%m%d_%H:%M:%S.') + '%06d'%(now.microsecond) +'.log'
-    log_cwd = getcwd()
+eff_cmd = {
+    'pushq': 'push',
+    'pullq': 'pull',
+    'pushw': 'push',
+    'pullw': 'pull',
+}
 
 
-def log_write(*args):
-    global log_fname
-    global log_file
+def ask(prompt, given_options=''):
+    '''
+    ask(prompt)
+    ask(prompt, ['y', 'n'])
+    ask(prompt, 'yn')
+    ask(prompt, 'yes no')
+    '''
 
-    if not log_fname:
-        return
+    if isinstance(given_options, str):
+        options = given_options.split()
+        if len(options) == 1:
+            options = [c for c in given_options]
 
-    if not log_file:
-        log_file = open(join(log_cwd, log_fname), 'wb')
+    elif isinstance(given_options, list):
+        options = given_options
 
-    log_file.write((' '.join(args).rstrip('\n') + '\n').encode('utf-8'))
-    log_file.flush()
+    options = [o.lower() for o in options]
+    if options:
+        options[0] = options[0][0].upper() + options[0][1:]
 
+    if options == []:   # str input
+        try:
+            return input(prompt + '> ')
+        except EOFError:
+            return None
 
-def log_info(*args, **kwargs):
-    print(*args, **kwargs)
-    log_write(*args)
+    try:
+        ret = input('{prompt} [{opts}] '.format(
+            prompt=prompt,
+            opts='/'.join(options)
+        )).strip().lower()
 
+        if ret == '':
+            ret = options[0]
 
-def log_error(*args, **kwargs):
-    print(*args, file=sys.stderr, **kwargs)
+        else:
+            matches = list(filter(lambda x: x.startswith(ret), map(str.lower, options)))
+            if len(matches) == 0:
+                ret = None
+            else:
+                ret = matches[0]
 
-# -----------------------------------------------------------------------------
-# Log utility
-# =============================================================================
+    except EOFError:
+        return None
 
-
-def get_drive_root(cwd=None):
-    probe = cwd if cwd else getcwd()
-
-    while probe != '/':
-        if exists(join(probe, '.gd')) and isfile(join(probe, '.gd', 'credentials.json')):
-            return probe
-
-        probe = dirname(probe)
-
-    return None
+    return ret.lower()
 
 
 def run(cmd, capture_output=False):
@@ -78,5 +74,13 @@ def run(cmd, capture_output=False):
     return sub.run(map(str, cmd), **kwargs)
 
 
-def send_telegram_msg(task):
-    run([telegram_bot, str(task)])
+def get_drive_root(cwd=None):
+    probe = cwd if cwd else getcwd()
+
+    while probe != '/':
+        if exists(join(probe, '.gd')) and isfile(join(probe, '.gd', 'credentials.json')):
+            return probe
+
+        probe = dirname(probe)
+
+    return None
