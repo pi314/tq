@@ -49,8 +49,6 @@ def main():
 
     args = parser.parse_args()
 
-    print(args)
-
     config.load()
 
     return args.subcmd(args)
