@@ -20,6 +20,7 @@ from .logger import log_create, log_task_status, log_dict, log_info, log_error
 
 task_queue = Queue()
 current_task = None
+quit_next = None
 
 
 class MyTCPHandler(socketserver.StreamRequestHandler):
@@ -46,26 +47,36 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         self.writejson(res)
 
     def handle(self):
+        global quit_next
+
         try:
             req = json.loads(''.join(self.readlines()))
-            if req['cmd'] == 'dump':
-                self.handle_dump()
-                return
-
-            t = Task(cwd=req['cwd'], cmd=req['cmd'], args=req['args'], block=req.get('block', None))
-            if t.lock:
-                t.status = 'blocking'
-                log_task_status(t)
-                telegram.notify_task(t)
-                task_queue.put(t)
-            else:
-                t.status = 'pending'
-                log_task_status(t)
-                task_queue.put(t)
-
         except json.decoder.JSONDecodeError:
             self.writeresult(400, 'JSONDecodeError')
             return
+
+        if req['cmd'] == 'dump':
+            self.handle_dump()
+            return
+
+        if req['cmd'] == 'quitnext':
+            quit_next = Task(cwd=req['cwd'], cmd=req['cmd'], args=req['args'], block=req.get('block', None))
+            quit_next.status = 'pending'
+            log_task_status(quit_next)
+            telegram.notify_task(quit_next)
+            self.writeresult(202, 'Accepted')
+            return
+
+        t = Task(cwd=req['cwd'], cmd=req['cmd'], args=req['args'], block=req.get('block', None))
+        if t.lock:
+            t.status = 'blocking'
+            log_task_status(t)
+            telegram.notify_task(t)
+            task_queue.put(t)
+        else:
+            t.status = 'pending'
+            log_task_status(t)
+            task_queue.put(t)
 
         if t.lock:
             t.lock.wait()
@@ -135,6 +146,12 @@ def start():
 
     try:
         while True:
+            if quit_next:
+                quit_next.status = 'succeed'
+                log_task_status(quit_next)
+                telegram.notify_task(quit_next)
+                break
+
             current_task = task_queue.get()
 
             if current_task.cmd == 'quit':
