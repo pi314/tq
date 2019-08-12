@@ -72,7 +72,7 @@ def submit_task(args):
     if not args.block:
         if args.dump:
             for i in res.get('data', []):
-                t = Task(cwd=i['cwd'], cmd=i['cmd'], args=i['args'])
+                t = Task(tid=i['tid'], cwd=i['cwd'], cmd=i['cmd'], args=i['args'])
                 t.status = i['status']
                 print()
                 print(str(t))
