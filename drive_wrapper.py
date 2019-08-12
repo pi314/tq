@@ -14,9 +14,13 @@ def main(args):
         return drive_index.main(args.cmd[1:])
 
     if d_cmd in ('pushq', 'pullq'):
-        return client.submit_task('d', [d_cmd] + args.cmd[1:], block=False)
+        args.cmd = ['d'] + args.cmd
+        args.block = False
+        return client.submit_task(args)
 
     if d_cmd in ('pushw', 'pullw'):
-        client.submit_task('d', [d_cmd] + args.cmd[1:], block=True)
+        args.cmd = ['d'] + args.cmd
+        args.block = True
+        client.submit_task(args)
 
     return drive_cmd.run(d_cmd, args.cmd[1:])[1]

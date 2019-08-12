@@ -9,6 +9,8 @@ from . import tq
 def main():
     parser = argparse.ArgumentParser(prog='dpush',
             description='A Task Queue with Built-in Wrapper to drive')
+    parser.set_defaults(dump=False, block=False)
+
     subparsers = parser.add_subparsers(title='subcommands')
 
     parser_d = subparsers.add_parser('d', help='d mode - Wrapper to drive')
