@@ -13,7 +13,10 @@ def main(args):
         config.save()
 
     if args.telegram:
-        telegram.enable()
+        try:
+            telegram.enable()
+        except KeyboardInterrupt:
+            exit(1)
         config.save()
 
     if args.load:

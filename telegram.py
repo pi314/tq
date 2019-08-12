@@ -42,30 +42,6 @@ def telegram_api(*args, **kwargs):
     return res
 
 
-def init_bot_id():
-    bot_id = config.get('telegram', 'bot_id')
-
-    if bot_id:
-        yn = utils.ask('Override existing bot_id? {}'.format(bot_id), 'ny')
-        if not yn or yn == 'n':
-            return bot_id
-
-    bot_id = None
-    print('Input bot_id')
-    try:
-        while not bot_id:
-            bot_id = input('bot_id >>> ').strip()
-
-            if not bot_id.endswith('bot'):
-                print('bot_id should ends with "bot"')
-                bot_id = None
-
-    except (EOFError, KeyboardInterrupt):
-        exit(1)
-
-    return bot_id
-
-
 def init_token():
     token = config.get('telegram', 'token')
 
@@ -85,7 +61,7 @@ def init_token():
                 print('It should be look like xxxxxxxxx:3bd8d2839afbb0ba2c0067578b7b0bc2')
                 token = None
 
-    except (EOFError, KeyboardInterrupt):
+    except EOFError:
         exit(1)
 
     return token
@@ -123,7 +99,7 @@ def init_chat_id():
                 print('Got message from {you}'.format(you=master_id))
                 print('Greeting again, {you}!'.format(you=master_name))
 
-    except (EOFError, KeyboardInterrupt):
+    except EOFError:
         exit(1)
 
     return chat_id

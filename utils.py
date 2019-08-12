@@ -37,7 +37,7 @@ def ask(prompt, given_options=''):
     if options == []:   # str input
         try:
             return input(prompt + '> ')
-        except (EOFError, KeyboardInterrupt):
+        except EOFError:
             return None
 
     try:
@@ -50,13 +50,13 @@ def ask(prompt, given_options=''):
             ret = options[0]
 
         else:
-            matches = list(filter(lambda x: x.startswith(ret), options))
+            matches = list(filter(lambda x: x.startswith(ret), map(str.lower, options)))
             if len(matches) == 0:
                 ret = None
             else:
                 ret = matches[0]
 
-    except (EOFError, KeyboardInterrupt):
+    except EOFError:
         return None
 
     return ret.lower()
