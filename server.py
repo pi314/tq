@@ -63,7 +63,6 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             quit_next = Task(cwd=req['cwd'], cmd=req['cmd'], args=req['args'], block=req.get('block', None))
             quit_next.status = 'pending'
             log_task_status(quit_next)
-            telegram.notify_task(quit_next)
             self.writeresult(202, 'Accepted')
             return
 
@@ -71,7 +70,6 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         if t.lock:
             t.status = 'blocking'
             log_task_status(t)
-            telegram.notify_task(t)
             task_queue.put(t)
         else:
             t.status = 'pending'
