@@ -54,12 +54,8 @@ def send_req(req):
 def submit_task(args):
     req = {}
     req['cwd'] = os.getcwd()
-    if args.dump:
-        req['cmd'] = 'dump'
-        req['args'] = []
-    else:
-        req['cmd'] = args.cmd[0]
-        req['args'] = args.cmd[1:]
+    req['cmd'] = args.cmd[0]
+    req['args'] = args.cmd[1:]
 
     req['block'] = args.block
 
@@ -69,23 +65,37 @@ def submit_task(args):
         print('KeyboardInterrupt')
         return 1
 
-    if not args.block:
-        if args.dump:
-            for i in res.get('data', []):
-                t = Task(tid=i['tid'], cwd=i['cwd'], cmd=i['cmd'], args=i['args'])
-                t.status = i['status']
-                print()
-                print(str(t))
-        else:
-            print(res)
-        return
-
-    if res and 200 <= res['status'] and res['status'] < 300:
-        if args.cmd[0] == 'd':
-            return 0
-        else:
-            os.execvp(args.cmd[0], args.cmd)
-
-    else:
+    if res['status'] < 200 or 300 <= res['status']:
         print(res)
         return 1
+
+    if not args.block:
+        print(res)
+        return
+
+    if args.cmd[0] == 'd':
+        return 0
+
+    os.execvp(args.cmd[0], args.cmd)
+
+
+def request_dump():
+    req = {}
+    req['cwd'] = os.getcwd()
+    req['cmd'] = 'dump'
+    req['args'] = []
+
+    try:
+        res = send_req(req)
+    except KeyboardInterrupt:
+        print('KeyboardInterrupt')
+        return 1
+
+    if res and 200 <= res['status'] and res['status'] < 300:
+        for i in res.get('data', []):
+            t = Task(tid=i['tid'], cwd=i['cwd'], cmd=i['cmd'], args=i['args'])
+            t.status = i['status']
+            print()
+            print(str(t))
+    else:
+        print(res)

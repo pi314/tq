@@ -22,8 +22,8 @@ def main(args):
     if args.load:
         return server.load(args.dry)
 
-    if args.dump:
-        return client.submit_task(args)
+    if args.dump or (len(args.cmd) and args.cmd[0] == 'dump'):
+        return client.request_dump()
 
     if not len(args.cmd):
         return server.start()
