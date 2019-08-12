@@ -158,6 +158,9 @@ def start():
                 if current_task.cmd == 'd':
                     (current_task.status, ret) = drive_cmd.run(current_task.args[0], current_task.args[1:])
                     log_task_status(current_task)
+                    if current_task.status == 'interrupted':
+                        raise KeyboardInterrupt
+
                 else:
                     p = sub.run([current_task.cmd] + current_task.args)
                     current_task.status = 'failed' if p.returncode else 'succeed'
