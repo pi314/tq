@@ -20,7 +20,7 @@ from .logger import log_create, log_task_status, log_dict, log_info, log_error
 
 task_queue = Queue()
 current_task = None
-quit_next = None
+quitnext = None
 
 
 class MyTCPHandler(socketserver.StreamRequestHandler):
@@ -47,7 +47,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         self.writejson(res)
 
     def handle(self):
-        global quit_next
+        global quitnext
 
         try:
             req = json.loads(''.join(self.readlines()))
@@ -60,9 +60,9 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             return
 
         if req['cmd'] == 'quitnext':
-            quit_next = Task(cwd=req['cwd'], cmd=req['cmd'], args=req['args'], block=req.get('block', None))
-            quit_next.status = 'pending'
-            log_task_status(quit_next)
+            quitnext = Task(cwd=req['cwd'], cmd=req['cmd'], args=req['args'], block=req.get('block', None))
+            quitnext.status = 'pending'
+            log_task_status(quitnext)
             self.writeresult(202, 'Accepted')
             return
 
@@ -92,6 +92,9 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         if current_task:
             data.append(current_task.to_dict())
+
+        if quitnext:
+            data.append(quitnext.to_dict())
 
         for t in list(task_queue.queue):
             data.append(t.to_dict())
@@ -144,15 +147,15 @@ def start():
 
     try:
         while True:
-            if quit_next:
-                quit_next.status = 'succeed'
-                log_task_status(quit_next)
-                telegram.notify_task(quit_next)
+            if quitnext:
+                quitnext.status = 'succeed'
+                log_task_status(quitnext)
+                telegram.notify_task(quitnext)
                 break
 
             current_task = task_queue.get()
 
-            if current_task.cmd == 'quit':
+            if current_task.cmd in ('quit', 'quitnext'):
                 current_task.status = 'succeed'
                 log_task_status(current_task)
                 telegram.notify_task(current_task)
@@ -208,6 +211,9 @@ def start():
 
 
 def load(dry):
+    global quitnext
+    global task_queue
+
     acc_log = {}
 
     fname = config.get('log', 'filename')
@@ -230,7 +236,25 @@ def load(dry):
         e = acc_log[tid]
         t = Task(tid=e['tid'], cwd=e['cwd'], cmd=e['cmd'], args=e['args'])
         t.status = 'pending'
-        task_queue.put(t)
+
+        if t.cmd == 'quitnext':
+            quitnext = t
+
+        else:
+            task_queue.put(t)
+
+    if quitnext:
+        tq_buf = Queue()
+        if not task_queue.empty():
+            tq_buf.put(task_queue.get())
+
+        tq_buf.put(quitnext)
+        quitnext = None
+
+        while not task_queue.empty():
+            tq_buf.put(task_queue.get())
+
+        task_queue = tq_buf
 
     if dry:
         while not task_queue.empty():
