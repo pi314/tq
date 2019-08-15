@@ -1,32 +1,44 @@
 from os import getcwd
 
-from . import hooks
 from . import utils
+from . import hooks
 
-from .task import Task
 from .chain import Chain
+from .task import Task
 
 
-def run(cmd, args):
-    task_user = Task(cwd=getcwd(), cmd=cmd, args=args)
-    task_exec = Task(cwd=getcwd(), cmd=utils.eff_cmd.get(cmd, cmd), args=args)
-
-    hook_cbs = (Chain(dir(hooks))
+def get_hook(cmd):
+    hook_funcs = (Chain(dir(hooks))
         .filter(lambda x: x.startswith(('pre_', 'post_')))
         .map(lambda x: (x, getattr(hooks, x)))
         .dict())
 
+    return hook_funcs.get(cmd, lambda *x: None)
+
+
+def get_hook_pre(cmd):
+    return get_hook('pre_' + cmd)
+
+
+def get_hook_post(cmd):
+    return get_hook('post_' + cmd)
+
+
+def run(task):
     try:
-        cap_out = False if not hook_cbs.get('pre_' + task_exec.cmd, lambda x: None)(task_exec) else True
-        task_user.status = 'working'
-        p = utils.run(['drive', task_exec.cmd] + task_exec.args, capture_output=cap_out)
-        task_user.status = 'succeed' if (p.returncode == 0) else 'failed'
+        task.status = 'working'
+        p = utils.run(['drive', utils.eff_cmd.get(task.args[0], task.args[0])] + task.args[1:], capture_output=task.cap_out)
+        task.status = 'succeed' if (p.returncode == 0) else 'failed'
     except KeyboardInterrupt:
-        task_user.status = 'interrupted'
+        task.status = 'interrupted'
 
     try:
-        hook_cbs.get('post_' + task_exec.cmd, lambda *x: None)(task_user, p.stdout, p.stderr)
-        return (task_user.status, p.returncode)
-    except UnboundLocalError:
-        hook_cbs.get('post_' + task_exec.cmd, lambda *x: None)(task_user, '', '')
-        return (task_user.status, 1)
+        try:
+            get_hook_post(task.args[0])(task, p.stdout, p.stderr)
+            return p.returncode
+        except UnboundLocalError:
+            get_hook_post(task.args[0])(task, '', '')
+            return 1
+
+    except KeyboardInterrupt:
+        return 1

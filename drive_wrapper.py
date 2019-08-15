@@ -1,7 +1,12 @@
+from os import getcwd
+
 from . import client
 from . import drive_cmd
 from . import drive_index
+from . import hooks
 from . import utils
+
+from .task import Task
 
 
 def main(args):
@@ -10,17 +15,27 @@ def main(args):
 
     d_cmd = args.cmd[0]
 
-    if d_cmd == 'index':
+    if d_cmd == 'index': # Should it be a special case?
         return drive_index.main(args.cmd[1:])
 
-    if d_cmd in ('pushq', 'pullq'):
-        args.cmd = ['d'] + args.cmd
-        args.block = False
-        return client.submit_task(args)
+    task = Task(cwd=getcwd(), cmd='d', args=args.cmd, block=False)
 
-    if d_cmd in ('pushw', 'pullw'):
-        args.cmd = ['d'] + args.cmd
-        args.block = True
-        client.submit_task(args)
+    task_list = drive_cmd.get_hook_pre(task.args[0])(task)
 
-    return drive_cmd.run(d_cmd, args.cmd[1:])[1]
+    if not task_list:
+        task_list = [task]
+
+    for task in task_list:
+        if task.block == Task.NORMAL:
+            ret = drive_cmd.run(task)
+
+        if task.block == Task.QUEUE:
+            ret = client.submit_task(task)
+
+        if task.block == Task.BLOCK:
+            ret = client.submit_task(task)
+            if ret == 0:
+                ret = drive_cmd.run(task)
+
+        if ret != 0:
+            return ret

@@ -1,10 +1,14 @@
 import sys
 
+from os import getcwd
+
 from . import config
 from . import server
 from . import client
 from . import telegram
 from . import logger
+
+from .task import Task
 
 
 def main(args):
@@ -32,4 +36,5 @@ def main(args):
         logger.log_error('Use sub-command "d" instead')
         return 1
 
-    return client.submit_task(args)
+    t = Task(cwd=getcwd(), cmd=args.cmd[0], args=args.cmd[1:], block=args.block)
+    return client.submit_task(t)

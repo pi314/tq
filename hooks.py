@@ -5,7 +5,15 @@ from os.path import basename, join
 from . import telegram
 
 from .logger import log_error
+from .task import Task
 from .utils import get_drive_root
+
+
+def expand_gpath(cwd, gpath):
+    if gpath.startswith('/'):
+        return join(get_drive_root(task.cwd), gpath[1:])
+
+    return gpath
 
 
 def pre_delete(task):
@@ -14,7 +22,7 @@ def pre_delete(task):
 
 
 def pre_list(task):
-    return True
+    task.cap_out = True
 
 
 def post_list(task, out, err):
@@ -29,31 +37,73 @@ def post_list(task, out, err):
 
 def pre_push(task):
     args = []
-    for a in task.args:
-        if a.startswith('/'):
-            args.append(join(get_drive_root(task.cwd), a[1:]))
-        else:
-            args.append(a)
+    for a in task.args[1:]:
+        args.append(expand_gpath(task.cwd, a))
 
-    task.args = ['-no-prompt', '-exclude-ops', 'delete'] + args
+    stdin_lines = []
+    if not sys.stdin.isatty():
+        for line in sys.stdin.readlines():
+            line = line.strip()
+            stdin_lines.append(expand_gpath(task.cwd, line))
+
+    args = [task.args[0], '-no-prompt', '-exclude-ops', 'delete'] + args
+
+    if not len(stdin_lines):
+        task.args = args
+    else:
+        ret = []
+        for line in stdin_lines:
+            t = task.copy()
+            t.args = args + [line]
+            ret.append(t)
+
+        return ret
 
 
 def post_push(task, out, err):
-    telegram.send_msg(str(task))
+    if task.block in (Task.NORMAL, Task.BLOCK):
+        telegram.send_msg(str(task))
+    else:
+        telegram.notify_msg(str(task))
 
 
 pre_pull = pre_push
 post_pull = post_push
 
 
+def pre_pushq(task):
+    task.block = Task.QUEUE
+    return pre_push(task)
+
+post_pushq = post_push
+
+
+def pre_pullq(task):
+    task.block = Task.QUEUE
+    return pre_pull(task)
+
+post_pullq = post_pull
+
+
+def pre_pushw(task):
+    task.block = Task.BLOCK
+    return pre_push(task)
+
+post_pushw = post_push
+
+
+def pre_pullw(task):
+    task.block = Task.BLOCK
+    return pre_pull(task)
+
+post_pullw = post_pull
+
+
 def pre_rename(task):
     if len(task.args) != 2:
         print('Usage:')
         print('    d rename A B')
-        sys.exit(1)
+        exit(1)
 
-    arg0 = task.args[0]
-    if arg0.startswith('/'):
-        task.args[0] = join(get_drive_root(task.cwd), arg0[1:])
-
+    arg0 = expand_gpath(task.cwd, task.args[0])
     task.args[1] = basename(task.args[1])

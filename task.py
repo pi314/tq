@@ -14,24 +14,30 @@ class MyOneWayLock:
 
 
 class Task:
-    def __init__(self, tid=None, cwd='', cmd='', args=[], block=False):
+    NORMAL = 0
+    BLOCK = 1
+    QUEUE = 2
+
+    def __init__(self, tid=None, cwd='', cmd='', args=[], block=NORMAL, cap_out=False):
         now = datetime.now()
         if tid:
             self.tid = tid
         else:
             self.tid = now.strftime('%Y%m%d_%H%M%S_') + '%06d'%(now.microsecond)
 
-        self.lock = None
-
         self.cwd = cwd
         self.cmd = cmd
         self.args = list(args)
+        self.block = block
+        self.cap_out = cap_out
 
-        if block:
-            self.lock = MyOneWayLock()
+        self.lock = MyOneWayLock() if self.block == Task.BLOCK else None
 
         self.status = 'init'
         self.ret = None
+
+    def copy(self):
+        return Task(cwd=self.cwd, cmd=self.cmd, args=self.args, block=self.block, cap_out=self.cap_out)
 
     def to_dict(self):
         ret = {}

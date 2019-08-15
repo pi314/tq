@@ -51,13 +51,12 @@ def send_req(req):
     return {'status': 400, 'reason': 'WTF'}
 
 
-def submit_task(args):
+def submit_task(task):
     req = {}
-    req['cwd'] = os.getcwd()
-    req['cmd'] = args.cmd[0]
-    req['args'] = args.cmd[1:]
-
-    req['block'] = args.block
+    req['cwd'] = task.cwd
+    req['cmd'] = task.cmd
+    req['args'] = task.args
+    req['block'] = task.block
 
     try:
         res = send_req(req)
@@ -69,14 +68,14 @@ def submit_task(args):
         print(res)
         return 1
 
-    if not args.block:
+    if task.block != Task.BLOCK:
         print(res)
-        return
-
-    if args.cmd[0] == 'd':
         return 0
 
-    os.execvp(args.cmd[0], args.cmd)
+    if task.cmd == 'd':
+        return 0
+
+    os.execvp(task.cmd, [task.cmd] + task.args)
 
 
 def request_dump():
