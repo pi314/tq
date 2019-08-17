@@ -6,6 +6,7 @@ from os import getcwd
 from os import walk
 from os.path import join
 from threading import Thread
+from unicodedata import east_asian_width
 
 from .logger import log_error
 from .utils import get_drive_root
@@ -13,6 +14,9 @@ from .utils import get_drive_root
 
 dindex_local = 'dindex.local'
 dindex_remote = 'dindex.remote'
+
+def str_width(s):
+    return sum(1 + (east_asian_width(c) in 'WF') for c in s)
 
 
 def writeline(f, line):
@@ -28,8 +32,8 @@ def ignore_fname(driveignore, fname):
 
 
 def index_local(params):
-    print('Indexing local files ...')
-
+    width_max = 0
+    count = 0
     plist = []
     for root, subdirs, files in walk(params.cwd):
         for f in files:
@@ -42,7 +46,13 @@ def index_local(params):
             depth_cwd = len(params.cwd.split('/'))
             depth_root = len(root.split('/'))
 
-            plist.append(join(root, f)[len(params.cwd)+1:])
+            line = (join(root, f)[len(params.cwd)+1:])
+            plist.append(line)
+
+            line_width = str_width(line)
+            width_max = max(width_max, line_width)
+            count += 1
+            print('\r[local ] {count}:{line}{pad}'.format(count=count, line=line, pad=' ' * (width_max - line_width)), end='')
 
         if params.depth != 0:
             depth_cwd = len(params.cwd.split('/'))
@@ -54,16 +64,15 @@ def index_local(params):
         for r in removee:
             subdirs.remove(r)
 
+    print('\r[local ] {count} {pad}'.format(count=len(plist), pad=' ' * (width_max)), end='')
+    print('\r[local ] {count} {line}'.format(count=len(plist), line='items indexed'))
+
     with open(dindex_local, 'wb') as f:
         for p in sorted(plist):
             writeline(f, p)
 
-    print('Indexing local files ... Done')
-
 
 def index_remote(params):
-    print('Indexing remote files ...')
-
     cmd = 'drive list -files -recursive -no-prompt'.split()
     if params.depth != 0:
         cmd.remove('-recursive')
@@ -72,6 +81,8 @@ def index_remote(params):
     p = sub.Popen(cmd, stdout=sub.PIPE)
 
     plist = []
+    width_max = 0
+    count = 0
     for line in iter(p.stdout.readline, b''):
         line = line.decode('utf-8').rstrip('\n')
         if not line: continue
@@ -79,16 +90,22 @@ def index_remote(params):
         if line.startswith('/'):
             line = line[1:]
 
+        line_width = str_width(line)
+        width_max = max(width_max, line_width)
+        print('\r[remote] {count}:{line}{pad}'.format(count=count, line=line, pad=' ' * (width_max - line_width)), end='')
+        count += 1
+
         if params.cwd == params.root:
             plist.append(line[line.index('/')+1:])
         else:
             plist.append(join(params.root, line)[len(params.cwd)+1:])
 
+    print('\r[remote] {count} {pad}'.format(count=len(plist), pad=' ' * (width_max)), end='')
+    print('\r[remote] {count} {line}'.format(count=len(plist), line='items indexed'))
+
     with open(dindex_remote, 'wb') as f:
         for p in sorted(plist):
             writeline(f, p)
-
-    print('Indexing remote files ... Done')
 
 
 def main(argv):
@@ -131,24 +148,15 @@ def main(argv):
             line = line.rstrip('\n')
             params.driveignore.append(re.compile(line))
 
-    t_local = None
-    t_remote = None
+    try:
+        if params.local:
+            index_local(params)
 
-    if params.local:
-        t_local = Thread(target=index_local, args=(params,))
-        t_local.daemon = True
-        t_local.start()
+        if params.remote:
+            index_remote(params)
+    except KeyboardInterrupt:
+        print('KeyboardInterrupt')
+        return 1
 
-    if params.remote:
-        t_remote = Thread(target=index_remote, args=(params,))
-        t_remote.daemon = True
-        t_remote.start()
-
-    if t_local:
-        t_local.join()
-
-    if t_remote:
-        t_remote.join()
-
-    print('Local index file:', dindex_local)
-    print('Remote index file:', dindex_remote)
+    print('[local ] index file:', dindex_local)
+    print('[remote] index file:', dindex_remote)
