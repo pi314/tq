@@ -17,7 +17,7 @@ def expand_gpath(cwd, gpath):
 
 
 def pre_delete(task):
-    task.cmd = 'trash'
+    task.args[0] = 'trash'
     print('Remap "delete" to "trash"')
 
 
