@@ -9,14 +9,36 @@ from threading import Thread
 from unicodedata import east_asian_width
 
 from .logger import log_error
-from .utils import get_drive_root
+from .utils import get_drive_root, run
 
 
 dindex_local = 'dindex.local'
 dindex_remote = 'dindex.remote'
 
+
+TTY_COLS = 0
+
+
 def str_width(s):
     return sum(1 + (east_asian_width(c) in 'WF') for c in s)
+
+
+def print_nowrap(s, **kwargs):
+    if not TTY_COLS:
+        print(s, **kwargs)
+        return
+
+    buf = ''
+    buf_w = 0
+    for i in s:
+        w = str_width(i)
+        if buf_w + w >= TTY_COLS:
+            break
+
+        buf += i
+        buf_w += w
+
+    print('\r' + buf + (' ' * (TTY_COLS - buf_w)) + '\r', **kwargs)
 
 
 def writeline(f, line):
@@ -32,7 +54,6 @@ def ignore_fname(driveignore, fname):
 
 
 def index_local(params):
-    width_max = 0
     count = 0
     plist = []
     for root, subdirs, files in walk(params.cwd):
@@ -49,10 +70,8 @@ def index_local(params):
             line = (join(root, f)[len(params.cwd)+1:])
             plist.append(line)
 
-            line_width = str_width(line)
-            width_max = max(width_max, line_width)
             count += 1
-            print('\r[local ] {count}:{line}{pad}'.format(count=count, line=line, pad=' ' * (width_max - line_width)), end='')
+            print_nowrap('[local ] {count}: {line}'.format(count=count, line=line), end='')
 
         if params.depth != 0:
             depth_cwd = len(params.cwd.split('/'))
@@ -64,8 +83,7 @@ def index_local(params):
         for r in removee:
             subdirs.remove(r)
 
-    print('\r[local ] {count} {pad}'.format(count=len(plist), pad=' ' * (width_max)), end='')
-    print('\r[local ] {count} {line}'.format(count=len(plist), line='items indexed'))
+    print_nowrap('[local ] {count} items indexed'.format(count=len(plist)))
 
     with open(dindex_local, 'wb') as f:
         for p in sorted(plist):
@@ -81,7 +99,6 @@ def index_remote(params):
     p = sub.Popen(cmd, stdout=sub.PIPE)
 
     plist = []
-    width_max = 0
     count = 0
     for line in iter(p.stdout.readline, b''):
         line = line.decode('utf-8').rstrip('\n')
@@ -90,18 +107,15 @@ def index_remote(params):
         if line.startswith('/'):
             line = line[1:]
 
-        line_width = str_width(line)
-        width_max = max(width_max, line_width)
-        print('\r[remote] {count}:{line}{pad}'.format(count=count, line=line, pad=' ' * (width_max - line_width)), end='')
         count += 1
+        print_nowrap('[remote] {count}: {line}'.format(count=count, line=line), end='')
 
         if params.cwd == params.root:
             plist.append(line[line.index('/')+1:])
         else:
             plist.append(join(params.root, line)[len(params.cwd)+1:])
 
-    print('\r[remote] {count} {pad}'.format(count=len(plist), pad=' ' * (width_max)), end='')
-    print('\r[remote] {count} {line}'.format(count=len(plist), line='items indexed'))
+    print_nowrap('[remote] {count} items indexed'.format(count=len(plist)))
 
     with open(dindex_remote, 'wb') as f:
         for p in sorted(plist):
@@ -109,6 +123,12 @@ def index_remote(params):
 
 
 def main(argv):
+    global TTY_COLS
+
+    p = run(['stty', 'size'], capture_output=True)
+
+    TTY_COLS = int(p.stdout.split()[1], 10)
+
     parser = argparse.ArgumentParser(prog='dindex',
             description='d sub-command - index')
 
