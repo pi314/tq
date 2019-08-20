@@ -6,7 +6,8 @@ from os import getcwd
 from os import walk
 from os.path import join
 from threading import Thread
-from unicodedata import east_asian_width
+from time import sleep
+from unicodedata import east_asian_width, normalize
 
 from .logger import log_error
 from .utils import get_drive_root, run
@@ -30,7 +31,7 @@ def print_nowrap(s, **kwargs):
 
     buf = ''
     buf_w = 0
-    for i in s:
+    for i in normalize('NFKC', s):
         w = str_width(i)
         if buf_w + w >= TTY_COLS:
             break
@@ -96,6 +97,8 @@ def index_remote(params):
         cmd.remove('-recursive')
         cmd += ['-depth', str(params.depth)]
 
+    print_nowrap('[remote] querying ...'.format(), end='')
+
     p = sub.Popen(cmd, stdout=sub.PIPE)
 
     plist = []
@@ -114,6 +117,9 @@ def index_remote(params):
             plist.append(line[line.index('/')+1:])
         else:
             plist.append(join(params.root, line)[len(params.cwd)+1:])
+
+        sleep(0.01)
+
 
     print_nowrap('[remote] {count} items indexed'.format(count=len(plist)))
 
