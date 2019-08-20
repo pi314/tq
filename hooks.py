@@ -100,10 +100,10 @@ post_pullw = post_pull
 
 
 def pre_rename(task):
-    if len(task.args) != 2:
+    if len(task.args) != 3:
         print('Usage:')
         print('    d rename A B')
         exit(1)
 
-    arg0 = expand_gpath(task.cwd, task.args[0])
-    task.args[1] = basename(task.args[1])
+    task.args[1] = expand_gpath(task.cwd, task.args[1])
+    task.args[2] = basename(task.args[2])
