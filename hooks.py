@@ -107,3 +107,8 @@ def pre_rename(task):
 
     task.args[1] = expand_gpath(task.cwd, task.args[1])
     task.args[2] = basename(task.args[2])
+
+
+def pre_renameq(task):
+    task.block = Task.QUEUE
+    return pre_rename(task)

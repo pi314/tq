@@ -11,6 +11,7 @@ eff_cmd = {
     'pullq': 'pull',
     'pushw': 'push',
     'pullw': 'pull',
+    'renameq': 'rename',
 }
 
 
