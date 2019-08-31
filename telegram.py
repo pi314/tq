@@ -25,6 +25,7 @@ def telegram_api(*args, **kwargs):
 
     retry_count = 0
     while retry_count < 3:
+        res = None
         try:
             res = urllib.request.urlopen(*args, **kwargs)
             return json.loads(res.read().decode('utf-8'))
