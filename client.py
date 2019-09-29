@@ -91,10 +91,11 @@ def request_dump():
         return 1
 
     if res and 200 <= res['status'] and res['status'] < 300:
-        for i in res.get('data', []):
-            t = Task(tid=i['tid'], cwd=i['cwd'], cmd=i['cmd'], args=i['args'])
-            t.status = i['status']
+        for idx, item in enumerate(res.get('data', [])):
+            t = Task(tid=item['tid'], cwd=item['cwd'], cmd=item['cmd'], args=item['args'])
+            t.status = item['status']
             print()
+            print(idx)
             print(str(t))
     else:
         print(res)
