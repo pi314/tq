@@ -61,6 +61,9 @@ def pre_push(task):
 
 
 def post_push(task, out, err):
+    if '-h' in task.args:
+        return
+
     if task.block in (Task.NORMAL, Task.BLOCK):
         telegram.send_msg(str(task))
     else:
