@@ -169,10 +169,13 @@ def main(argv):
         log_error('Drive context not found')
         return 1
 
-    with open(join(params.root, '.driveignore')) as f:
-        for line in f:
-            line = line.rstrip('\n')
-            params.driveignore.append(re.compile(line))
+    try:
+        with open(join(params.root, '.driveignore')) as f:
+            for line in f:
+                line = line.rstrip('\n')
+                params.driveignore.append(re.compile(line))
+    except FileNotFoundError:
+        pass
 
     try:
         if params.local:
