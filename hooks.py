@@ -11,7 +11,7 @@ from .utils import get_drive_root
 
 def expand_gpath(cwd, gpath):
     if gpath.startswith('/'):
-        return join(get_drive_root(task.cwd), gpath[1:])
+        return join(get_drive_root(cwd), gpath[1:])
 
     return gpath
 
