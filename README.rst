@@ -15,6 +15,14 @@ either in Google drive's trash can, or they are not important (Yes some of them
 are wiped out on my disk, before I push them to Google drive.)
 
 
+Related Works
+-------------------------------------------------------------------------------
+* http://vicerveza.homeunix.net/~viric/soft/ts/
+
+  - It seems a good replacement of this project; Have a look to it before using mine.
+  - Maybe I'll change ``dpush`` as a wrapper to it if it's useful to me.
+
+
 Installation
 -------------------------------------------------------------------------------
 WIP
