@@ -21,6 +21,7 @@ from .logger import log_create, log_task_status, log_dict, log_info, log_error
 task_queue = Queue()
 current_task = None
 quitnext = None
+auto_quit = True
 
 
 class MyTCPHandler(socketserver.StreamRequestHandler):
@@ -48,6 +49,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
     def handle(self):
         global quitnext
+        global auto_quit
 
         try:
             req = json.loads(''.join(self.readlines()))
@@ -63,6 +65,16 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             quitnext = Task(cwd=req['cwd'], cmd=req['cmd'], args=req['args'], block=req.get('block', None))
             quitnext.status = 'pending'
             log_task_status(quitnext)
+            self.writeresult(202, 'Accepted')
+            return
+
+        if req['cmd'] == 'autoquit':
+            auto_quit = True
+            self.writeresult(202, 'Accepted')
+            return
+
+        if req['cmd'] == 'noautoquit':
+            auto_quit = False
             self.writeresult(202, 'Accepted')
             return
 
@@ -197,6 +209,12 @@ def start():
                 print('[status] empty')
                 log_dict({'status': 'empty'})
                 telegram.notify_msg('[status] empty')
+                if auto_quit:
+                    now = datetime.now()
+                    timestamp = now.strftime('%Y%m%d_%H:%M:%S_') + '%06d'%(now.microsecond)
+                    log_dict({'status': 'stop', 'reason': 'auto_quit', 'time': timestamp})
+                    telegram.notify_msg('[status] stop (auto_quit)')
+                    break
 
     except KeyboardInterrupt:
         print()
