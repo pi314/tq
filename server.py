@@ -70,12 +70,12 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         if req['cmd'] == 'autoquit':
             auto_quit = True
-            self.writeresult(202, 'Accepted')
+            self.writejson({'autoquit': auto_quit})
             return
 
         if req['cmd'] == 'noautoquit':
             auto_quit = False
-            self.writeresult(202, 'Accepted')
+            self.writejson({'autoquit': auto_quit})
             return
 
         t = Task(cwd=req['cwd'], cmd=req['cmd'], args=req['args'], block=req.get('block', None))

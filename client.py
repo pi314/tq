@@ -99,3 +99,18 @@ def request_dump():
             print(str(t))
     else:
         print(res)
+
+
+def set_autoquit(autoquit):
+    req = {}
+    req['cwd'] = os.getcwd()
+    req['cmd'] = 'autoquit' if autoquit else 'noautoquit'
+    req['args'] = []
+
+    try:
+        res = send_req(req)
+    except KeyboardInterrupt:
+        print('KeyboardInterrupt')
+        return 1
+
+    print(res)

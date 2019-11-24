@@ -9,12 +9,13 @@ from . import tq
 def main():
     parser = argparse.ArgumentParser(prog='dpush',
             description='A Task Queue with Built-in Wrapper to drive')
-    parser.set_defaults(dump=False, block=False)
+    parser.set_defaults(block=False)
 
     subparsers = parser.add_subparsers(title='subcommands')
 
     parser_d = subparsers.add_parser('d', help='d mode - Wrapper to drive')
     parser_d.set_defaults(mode='d')
+    parser_d.set_defaults(dump=False)
     parser_d.set_defaults(subcmd=drive_wrapper.main)
 
     parser_d.add_argument('cmd', nargs=argparse.REMAINDER,
@@ -24,6 +25,7 @@ def main():
     parser_tq = subparsers.add_parser('tq', help='tq mode - Built-in task queue')
     parser_tq.set_defaults(mode='tq')
     parser_tq.set_defaults(subcmd=tq.main)
+    parser_tq.set_defaults(autoquit=None)
 
     parser_tq.add_argument('-b', '--block', action='store_true', dest='block',
             help='block and wait instead of put task into queue')
@@ -43,6 +45,12 @@ def main():
 
     parser_tq.add_argument('-d', '--dump', action='store_true', dest='dump',
             help='show current content of task queue')
+
+    parser_tq.add_argument('-a', '--autoquit', action='store_true', dest='autoquit',
+            help='enable autoquit (quit when queue is empty)')
+
+    parser_tq.add_argument('-A', '--no-autoquit', action='store_false', dest='autoquit',
+            help='disable autoquit')
 
     parser_tq.add_argument('cmd', nargs=argparse.REMAINDER,
             help='shell command to be queued into tq')
