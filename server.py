@@ -4,6 +4,7 @@ import re
 import socket
 import socketserver
 import subprocess as sub
+import sys
 
 from datetime import datetime
 from queue import Queue
@@ -127,12 +128,6 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     pass
 
 
-def server_frontend():
-    socketserver.TCPServer.allow_reuse_address = True
-    with ThreadedTCPServer((HOST, PORT), MyTCPHandler) as server:
-        server.serve_forever()
-
-
 def start():
     global current_task
 
@@ -158,6 +153,7 @@ def start():
 
     log_create()
 
+    print(sys.version_info)
     print('[status] start')
     # telegram.notify_msg('[status] start')
     now = datetime.now()

@@ -1,5 +1,5 @@
 ===============================================================================
-dpush - a wrapper to `drive <https://github.com/odeke-em/drive>`_
+tq - a task queue specialized to `drive <https://github.com/odeke-em/drive>`_
 ===============================================================================
 I want ``drive`` to
 
@@ -53,3 +53,40 @@ For ``push`` / ``pull`` / ``pushq`` / ``pullq`` / ``rename``, absolute paths wil
 translated to relative path from the google drive root folder.
 
 All other commands are directly passed to ``drive``.
+
+
+Architecture
+-------------------------------------------------------------------------------
+
+::
+
+  .---------------------------------------------------------------------------.
+  |                                                                           |
+  |  @---.                                                                    |
+  |      |                                                                    |
+  |  .----------.                                                             |
+  |  | cli_main |                                                             |
+  |  '----------'                                                             |
+  |      |                                                                    |
+  |      |------------.          .----------------.                           |
+  |      |            |          | telegram_queue |                           |
+  |  .--------.   .-------.      '----------------'                           |
+  |  | cli_tq |   | cli_d |          |                                        |
+  |  '--------'   '-------'      .------------.                   .--------.  |
+  |      |            |          | task_queue |                   | models |  |
+  |      |------------'          '------------'                   '--------'  |
+  |      | tq_cmd                    | tq_cmd              .---------------.  |
+  |      |                           |                     | lib_drive_cmd |  |
+  |  .-------------.             .-------------.           '---------------'  |
+  |  | wire_client |             | wire_server |        .------------------.  |
+  |  '-------------'             '-------------'        | lib_telegram_bot |  |
+  |      |                           |                  '------------------'  |
+  |      '---------------------------'                        .------------.  |
+  |             local TCP socket                              | lib_logger |  |
+  |                                                           '------------'  |
+  '---------------------------------------------------------------------------'
+
+On the server side, task_queue runs in the main thread,
+and telegram_queue and wire_server are in daemon threads.
+
+models contains class definition.
