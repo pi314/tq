@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import socket
 import socketserver
 import subprocess as sub
@@ -69,12 +70,18 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             return
 
         if req['cmd'] == 'autoquit':
-            auto_quit = True
-            self.writejson({'autoquit': auto_quit})
-            return
+            if not req['args']:
+                self.writejson({'autoquit': auto_quit})
+                return
 
-        if req['cmd'] == 'noautoquit':
-            auto_quit = False
+            m = re.match(r'^(\d+)([msh])$', req['args'][0])
+            if not m:
+                self.writejson({'autoquit': auto_quit})
+                return
+
+            time = int(m.group(1)) * {'s': 1, 'm': 60, 'h': 3600}[m.group(2)]
+
+            auto_quit = time
             self.writejson({'autoquit': auto_quit})
             return
 

@@ -46,11 +46,8 @@ def main():
     parser_tq.add_argument('-d', '--dump', action='store_true', dest='dump',
             help='show current content of task queue')
 
-    parser_tq.add_argument('-a', '--autoquit', action='store_true', dest='autoquit',
-            help='enable autoquit (quit when queue is empty)')
-
-    parser_tq.add_argument('-A', '--no-autoquit', action='store_false', dest='autoquit',
-            help='disable autoquit')
+    parser_tq.add_argument('-a', '--autoquit', nargs='?', const='1m', dest='autoquit',
+            help='enable autoquit (quit when queue is empty after provided time, set 0 to disable)')
 
     parser_tq.add_argument('cmd', nargs=argparse.REMAINDER,
             help='shell command to be queued into tq')

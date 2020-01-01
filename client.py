@@ -104,8 +104,8 @@ def request_dump():
 def set_autoquit(autoquit):
     req = {}
     req['cwd'] = os.getcwd()
-    req['cmd'] = 'autoquit' if autoquit else 'noautoquit'
-    req['args'] = []
+    req['cmd'] = 'autoquit'
+    req['args'] = [autoquit]
 
     try:
         res = send_req(req)
