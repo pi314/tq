@@ -1,9 +1,9 @@
 import argparse
 import sys
 
-from . import config
-from . import drive_wrapper
-from . import tq
+from . import lib_config
+from . import cli_d
+from . import cli_tq
 
 
 def main():
@@ -16,7 +16,7 @@ def main():
     parser_d = subparsers.add_parser('d', help='d mode - Wrapper to drive')
     parser_d.set_defaults(mode='d')
     parser_d.set_defaults(dump=False)
-    parser_d.set_defaults(subcmd=drive_wrapper.main)
+    parser_d.set_defaults(subcmd=cli_d.main)
 
     parser_d.add_argument('cmd', nargs=argparse.REMAINDER,
             help='drive/d command')
@@ -24,7 +24,7 @@ def main():
 
     parser_tq = subparsers.add_parser('tq', help='tq mode - Built-in task queue')
     parser_tq.set_defaults(mode='tq')
-    parser_tq.set_defaults(subcmd=tq.main)
+    parser_tq.set_defaults(subcmd=cli_tq.main)
     parser_tq.set_defaults(autoquit=None)
 
     parser_tq.add_argument('-b', '--block', action='store_true', dest='block',
@@ -54,6 +54,6 @@ def main():
 
     args = parser.parse_args()
 
-    config.load()
+    lib_config.load()
 
     return args.subcmd(args)

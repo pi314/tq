@@ -4,7 +4,7 @@ import socket
 
 from . import HOST, PORT
 
-from .task import Task
+from .models import Task
 
 
 def send_req(req):

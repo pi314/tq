@@ -2,11 +2,11 @@ import sys
 
 from os.path import basename, join
 
-from . import telegram
+from . import lib_telegram
 
-from .logger import log_error
-from .task import Task
-from .utils import get_drive_root
+from .lib_logger import log_error
+from .lib_utils import get_drive_root
+from .models import Task
 
 
 def expand_gpath(cwd, gpath):
@@ -65,9 +65,9 @@ def post_push(task, out, err):
         return
 
     if task.block in (Task.NORMAL, Task.BLOCK):
-        telegram.send_msg(str(task))
+        lib_telegram.send_msg(str(task))
     else:
-        telegram.notify_msg(str(task))
+        lib_telegram.notify_msg(str(task))
 
 
 pre_pull = pre_push

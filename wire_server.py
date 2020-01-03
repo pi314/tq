@@ -12,12 +12,12 @@ from threading import Thread
 from os.path import exists
 
 from . import HOST, PORT
-from . import config
-from . import drive_cmd
-from . import telegram
+from . import lib_config
+from . import lib_drive_cmd
+from . import lib_telegram
 
-from .task import Task
-from .logger import log_create, log_task_status, log_dict, log_info, log_error
+from .models import Task
+from .lib_logger import log_create, log_task_status, log_dict, log_info, log_error
 
 
 task_queue = Queue()
@@ -145,7 +145,7 @@ def start():
     t.daemon = True
     t.start()
 
-    t2 = Thread(target=telegram.loop_start)
+    t2 = Thread(target=lib_telegram.loop_start)
     t2.daemon = True
     t2.start()
 
@@ -155,7 +155,7 @@ def start():
 
     print(sys.version_info)
     print('[status] start')
-    # telegram.notify_msg('[status] start')
+    # lib_telegram.notify_msg('[status] start')
     now = datetime.now()
     timestamp = now.strftime('%Y%m%d_%H:%M:%S_') + '%06d'%(now.microsecond)
     log_dict({'status': 'start', 'time': timestamp})
@@ -165,7 +165,7 @@ def start():
             if quitnext:
                 quitnext.status = 'succeed'
                 log_task_status(quitnext)
-                telegram.notify_task(quitnext)
+                lib_telegram.notify_task(quitnext)
                 break
 
             current_task = task_queue.get()
@@ -173,23 +173,23 @@ def start():
             if current_task.cmd in ('quit', 'quitnext'):
                 current_task.status = 'succeed'
                 log_task_status(current_task)
-                telegram.notify_task(current_task)
+                lib_telegram.notify_task(current_task)
                 break
 
             if current_task.lock:
                 current_task.lock.notify()
                 current_task.status = 'unblocked'
                 log_task_status(current_task)
-                telegram.notify_task(current_task)
+                lib_telegram.notify_task(current_task)
 
             else:
                 current_task.status = 'working'
                 log_task_status(current_task)
-                telegram.notify_task(current_task)
+                lib_telegram.notify_task(current_task)
 
                 os.chdir(current_task.cwd)
                 if current_task.cmd == 'd':
-                    ret = drive_cmd.run(current_task)
+                    ret = lib_drive_cmd.run(current_task)
                     log_task_status(current_task)
                     if current_task.status == 'interrupted':
                         raise KeyboardInterrupt
@@ -203,7 +203,7 @@ def start():
                         current_task.status = 'error'
 
                     log_task_status(current_task)
-                    telegram.notify_task(current_task)
+                    lib_telegram.notify_task(current_task)
 
             current_task = None
 
@@ -211,12 +211,12 @@ def start():
                 print()
                 print('[status] empty')
                 log_dict({'status': 'empty'})
-                telegram.notify_msg('[status] empty')
+                lib_telegram.notify_msg('[status] empty')
                 if auto_quit:
                     now = datetime.now()
                     timestamp = now.strftime('%Y%m%d_%H:%M:%S_') + '%06d'%(now.microsecond)
                     log_dict({'status': 'stop', 'reason': 'auto_quit', 'time': timestamp})
-                    telegram.notify_msg('[status] stop (auto_quit)')
+                    lib_telegram.notify_msg('[status] stop (auto_quit)')
                     break
 
     except KeyboardInterrupt:
@@ -225,10 +225,10 @@ def start():
         now = datetime.now()
         timestamp = now.strftime('%Y%m%d_%H:%M:%S_') + '%06d'%(now.microsecond)
         log_dict({'status': 'stop', 'reason': 'KeyboardInterrupt', 'time': timestamp})
-        # telegram.notify_msg('[status] stop: KeyboardInterrupt')
+        # lib_telegram.notify_msg('[status] stop: KeyboardInterrupt')
         ret = 1
 
-    telegram.loop_stop()
+    lib_telegram.loop_stop()
 
     t2.join()
 
@@ -241,7 +241,7 @@ def load(dry):
 
     acc_log = {}
 
-    fname = config.get('log', 'filename')
+    fname = lib_config.get('log', 'filename')
     if not exists(fname):
         return start()
 

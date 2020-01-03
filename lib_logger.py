@@ -4,7 +4,7 @@ import sys
 from os import getcwd
 from os.path import join
 
-from . import config
+from . import lib_config
 
 
 log_fname = None
@@ -16,7 +16,7 @@ def log_create():
     global log_fname
     global log_cwd
 
-    log_fname = config.get('log', 'filename')
+    log_fname = lib_config.get('log', 'filename')
     log_cwd = getcwd()
 
 

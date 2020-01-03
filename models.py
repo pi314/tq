@@ -61,3 +61,45 @@ class Task:
             s.append('[{}] ret: {}'.format(self.status, self.ret))
 
         return '\n'.join(s)
+
+
+class MsgSubmitTask:
+    def __init__(self, task):
+        self.task = task
+
+
+class MsgGeneralResult:
+    def __init__(self, result, reason):
+        self.result = result
+        self.reason = reason
+
+
+class MsgGetTaskList:
+    pass
+
+
+class MsgTaskList:
+    def __init__(self, task_list):
+        self.task_list = task_list
+
+
+class MsgQuitNext:
+    pass
+
+
+class MsgSetAutoQuit:
+    def __init__(self, timeout):
+        self.timeout = timeout
+
+
+class MsgCurrAutoQuit:
+    def __init__(self, timeout):
+        self.timeout = timeout
+
+
+class MsgBlock:
+    pass
+
+
+class MsgUnblock:
+    pass
