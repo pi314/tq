@@ -130,7 +130,7 @@ def send_msg(text):
     res = telegram_api(req)
 
 
-def loop_start():
+def start():
     while True:
         msg = msg_queue.get()
 

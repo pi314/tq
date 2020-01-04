@@ -19,7 +19,7 @@ def main(args):
     if d_cmd == 'index': # Should it be a special case?
         return lib_drive_cmd_index.main(args.cmd[1:])
 
-    task = Task(cwd=getcwd(), cmd='d', args=args.cmd, block=False)
+    task = Task(tid=Task.gen_tid(), cwd=getcwd(), cmd='d', args=args.cmd, block=False)
 
     task_list = lib_drive_cmd.get_hook_pre(task.args[0])(task)
 
@@ -27,7 +27,7 @@ def main(args):
         task_list = [task]
 
     for task in task_list:
-        if task.block == Task.NORMAL:
+        if task.block == Task.LOCAL:
             ret = lib_drive_cmd.run(task)
 
         if task.block == Task.QUEUE:

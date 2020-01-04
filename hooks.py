@@ -4,7 +4,7 @@ from os.path import basename, join
 
 from . import lib_telegram
 
-from .lib_logger import log_error
+from .lib_logger import print_error
 from .lib_utils import get_drive_root
 from .models import Task
 
@@ -27,7 +27,7 @@ def pre_list(task):
 
 def post_list(task, out, err):
     if err:
-        log_error(err.decode('utf-8'), end="")
+        print_error(err.decode('utf-8'), end="")
         return
 
     for line in sorted(out.decode('utf-8').rstrip('\n').split('\n')):
@@ -64,7 +64,7 @@ def post_push(task, out, err):
     if '-h' in task.args:
         return
 
-    if task.block in (Task.NORMAL, Task.BLOCK):
+    if task.block in (Task.LOCAL, Task.BLOCK):
         lib_telegram.send_msg(str(task))
     else:
         lib_telegram.notify_msg(str(task))

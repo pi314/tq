@@ -4,34 +4,33 @@ import socket
 
 from . import HOST, PORT
 
-from .models import Task
+from .models import *
+from .lib_wire import *
+from .lib_utils import *
 
 
-def send_req(req):
+def send_cmds(*cmd_list):
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.connect((HOST, PORT))
 
-            def writeline(line):
-                sock.sendall((line + '\n').encode('utf-8'))
-
-            def writejson(obj):
-                writeline(json.dumps(obj))
-
-            writejson(req)
+            for cmd in cmd_list:
+                sock.sendall((serialize(cmd) + '\n').encode('utf-8'))
 
             sock.shutdown(socket.SHUT_WR)
 
-            res = b''
+            buf = b''
             while True:
                 data = sock.recv(1024)
                 if not data: break
-                res += data
+                buf += data
 
-            try:
-                res = json.loads(res.decode('utf-8').strip())
-            except json.decoder.JSONDecodeError:
-                print('JSONDecodeError')
+            if not buf:
+                return [MsgGeneralResult(500, 'Empty content')]
+
+            lines = buf.decode('utf-8').strip().split('\n')
+
+            res_list = [deserialize(line) for line in lines]
 
             try:
                 sock.shutdown(socket.SHUT_RD)
@@ -43,28 +42,23 @@ def send_req(req):
             except OSError:
                 pass
 
-        return res
+        return res_list
 
     except ConnectionRefusedError:
-        return {'status': 400, 'reason': 'Task queue is not running'}
+        return [MsgGeneralResult(400, 'Task queue is not running')]
 
-    return {'status': 400, 'reason': 'WTF'}
+    return [MsgGeneralResult(400, 'WTF')]
 
 
 def submit_task(task):
-    req = {}
-    req['cwd'] = task.cwd
-    req['cmd'] = task.cmd
-    req['args'] = task.args
-    req['block'] = task.block
-
     try:
-        res = send_req(req)
+        res_list = send_cmds(MsgSubmitTaskList([task]))
     except KeyboardInterrupt:
         print('KeyboardInterrupt')
         return 1
 
-    if res['status'] < 200 or 300 <= res['status']:
+    res = res_list[0]
+    if res.result < 200 or 300 <= res.result:
         print(res)
         return 1
 
@@ -78,39 +72,21 @@ def submit_task(task):
     os.execvp(task.cmd, [task.cmd] + task.args)
 
 
-def request_dump():
-    req = {}
-    req['cwd'] = os.getcwd()
-    req['cmd'] = 'dump'
-    req['args'] = []
+def get_task_list():
+    res_list = send_cmds(MsgGetTaskList())
 
-    try:
-        res = send_req(req)
-    except KeyboardInterrupt:
-        print('KeyboardInterrupt')
-        return 1
+    for res in res_list:
+        if isinstance(res, MsgTaskList):
+            for idx, task in enumerate(res.task_list):
+                print()
+                print(idx)
+                print(task)
+        else:
+            print(res)
 
-    if res and 200 <= res['status'] and res['status'] < 300:
-        for idx, item in enumerate(res.get('data', [])):
-            t = Task(tid=item['tid'], cwd=item['cwd'], cmd=item['cmd'], args=item['args'])
-            t.status = item['status']
-            print()
-            print(idx)
-            print(str(t))
-    else:
+
+def set_auto_quit(timeout):
+    res_list = send_cmds(MsgSetAutoQuit(timeout))
+
+    for res in res_list:
         print(res)
-
-
-def set_autoquit(autoquit):
-    req = {}
-    req['cwd'] = os.getcwd()
-    req['cmd'] = 'autoquit'
-    req['args'] = [autoquit]
-
-    try:
-        res = send_req(req)
-    except KeyboardInterrupt:
-        print('KeyboardInterrupt')
-        return 1
-
-    print(res)

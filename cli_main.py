@@ -25,7 +25,7 @@ def main():
     parser_tq = subparsers.add_parser('tq', help='tq mode - Built-in task queue')
     parser_tq.set_defaults(mode='tq')
     parser_tq.set_defaults(subcmd=cli_tq.main)
-    parser_tq.set_defaults(autoquit=None)
+    parser_tq.set_defaults(auto_quit=None)
 
     parser_tq.add_argument('-b', '--block', action='store_true', dest='block',
             help='block and wait instead of put task into queue')
@@ -46,8 +46,8 @@ def main():
     parser_tq.add_argument('-d', '--dump', action='store_true', dest='dump',
             help='show current content of task queue')
 
-    parser_tq.add_argument('-a', '--autoquit', nargs='?', const='1m', dest='autoquit',
-            help='enable autoquit (quit when queue is empty after provided time, set 0 to disable)')
+    parser_tq.add_argument('-a', '--auto-quit', nargs='?', const='?', dest='auto_quit',
+            help='enable auto-quit (quit when queue is empty after provided time, set 0 to disable)')
 
     parser_tq.add_argument('cmd', nargs=argparse.REMAINDER,
             help='shell command to be queued into tq')
