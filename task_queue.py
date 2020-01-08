@@ -26,6 +26,7 @@ current_task = None
 
 auto_quit_config = 60
 auto_quit_remain = auto_quit_config
+no_task_yet = True
 
 
 def submit_task_list(task_list):
@@ -47,11 +48,16 @@ def set_auto_quit(timeout):
     global auto_quit_config
     global auto_quit_remain
 
-    m = re.match(r'^(\d+)([msh])$', timeout)
+    m = re.match(r'^(\d+)([msh]?)$', timeout)
     if not m:
         return
 
-    auto_quit_config = int(m.group(1)) * {'s': 1, 'm': 60, 'h': 3600}[m.group(2)]
+    value = m.group(1)
+    unit = m.group(2)
+    if not unit:
+        unit = 's'
+
+    auto_quit_config = int(value) * {'s': 1, 'm': 60, 'h': 3600}[unit]
     auto_quit_remain = auto_quit_config
     print('auto_quit={}, remain={}'.format(*get_auto_quit()))
 
@@ -67,6 +73,7 @@ def start():
     global current_task
     global auto_quit_config
     global auto_quit_remain
+    global no_task_yet
 
     v = sys.version_info
     log_sys('start', 'Python {}.{}.{}, releaselevel={}, serial={}'.format(
@@ -76,21 +83,23 @@ def start():
 
     try:
         while True:
-            if task_queue.empty():
-                if auto_quit_config == 0:
-                    pass
-                else:
-                    auto_quit_remain -= 1
-                    if auto_quit_remain <= 0:
-                        break
+            if not no_task_yet:
+                if task_queue.empty():
+                    if auto_quit_config == 0:
+                        pass
+                    else:
+                        auto_quit_remain -= 1
+                        if auto_quit_remain <= 0:
+                            break
 
-                if auto_quit_remain % 5 == 0:
-                    print('auto_quit={}, remain={}'.format(*get_auto_quit()))
+                    if auto_quit_remain % 5 == 0:
+                        print('auto_quit={}, remain={}'.format(*get_auto_quit()))
 
-                sleep(1)
-                continue
+                    sleep(1)
+                    continue
 
             current_task = task_queue.get()
+            no_task_yet = False
             auto_quit_remain = auto_quit_config
 
             if current_task.cmd == 'quit':
@@ -134,6 +143,10 @@ def start():
                 log_sys('empty', 'auto_quit={}, remain={}'.format(*get_auto_quit()))
                 lib_telegram.notify_msg(
                         '[status] empty: auto_quit={}, remain={}'.format(*get_auto_quit()))
+
+
+        log_sys('stop', 'auto_quit')
+        lib_telegram.notify_msg('[status] stop: auto_quit')
 
     except KeyboardInterrupt:
         log_sys('stop', 'KeyboardInterrupt')
