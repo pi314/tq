@@ -1,6 +1,7 @@
+import shutil
 import sys
 
-from os.path import basename, join
+from os.path import basename, join, exists, isdir
 
 from . import lib_telegram
 
@@ -115,3 +116,33 @@ def pre_rename(task):
 def pre_renameq(task):
     task.block = Task.QUEUE
     return pre_rename(task)
+
+
+def pre_mv(task):
+    dst = task.args[-1]
+
+    task_list = []
+    for src in task.args[1:-1]:
+        print('[d mv]', src, '->', dst)
+        task_list.append(Task(
+            tid=Task.gen_tid(),
+            cwd=task.cwd,
+            cmd=task.cmd,
+            args=['mv', src, dst],
+            block=False,
+            ))
+
+    return task_list
+
+
+def post_mv(task, out, err):
+    if len(task.args) == 3:
+        src_fpath = task.args[1]
+        src_fname = basename(src_fpath)
+        dst = task.args[2]
+        dst_fpath = join(dst, src_fname)
+        if exists(src_fpath) and isdir(dst) and not exists(dst_fpath):
+            print('[mv] {} -> {}'.format(src_fpath, dst_fpath))
+            shutil.move(src_fpath, dst_fpath)
+
+post_move = post_mv

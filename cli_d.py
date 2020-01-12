@@ -3,7 +3,6 @@ from os import getcwd
 from . import wire_client
 from . import lib_drive_cmd
 from . import lib_drive_cmd_index
-from . import hooks
 from . import lib_utils
 from . import lib_wire
 
