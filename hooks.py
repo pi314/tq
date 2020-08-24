@@ -1,7 +1,7 @@
 import shutil
 import sys
 
-from os.path import basename, join, exists, isdir
+from os.path import dirname, basename, join, exists, isdir
 
 from . import lib_telegram
 
@@ -112,10 +112,28 @@ def pre_rename(task):
     task.args[1] = expand_gpath(task.cwd, task.args[1])
     task.args[2] = basename(task.args[2])
 
+    folder = dirname(task.args[1])
+    src = basename(task.args[1])
+    dst = basename(task.args[2])
+    print('[d rename] folder = {b[0]}\033[1;35m{f}\033[m{b[1]}'.format(f=folder, b='[]' if folder else '()'))
+    print('[d rename] src = [\033[1;35m{}\033[m]'.format(src))
+    print('[d rename] dst = [\033[1;35m{}\033[m]'.format(dst))
+
 
 def pre_renameq(task):
     task.block = Task.QUEUE
     return pre_rename(task)
+
+
+def post_rename(task, out, err):
+    if len(task.args) == 3:
+        folder = dirname(task.args[1])
+        src = task.args[1]
+        dst = join(folder, basename(task.args[2]))
+        if exists(src) and not exists(dst):
+            print('[rename] folder = {b[0]}\033[1;35m{f}\033[m{b[1]}'.format(f=folder, b='[]' if folder else '()'))
+            print('[rename] src = [\033[1;35m{}\033[m]'.format(src))
+            print('[rename] dst = [\033[1;35m{}\033[m]'.format(dst))
 
 
 def pre_mv(task):
@@ -123,7 +141,8 @@ def pre_mv(task):
 
     task_list = []
     for src in task.args[1:-1]:
-        print('[d mv]', src, '->', dst)
+        print('[d mv] src = [\033[1;35m{}\033[m]'.format(src))
+        print('[d mv] dst = [\033[1;35m{}\033[m]'.format(dst))
         task_list.append(Task(
             tid=Task.gen_tid(),
             cwd=task.cwd,
@@ -142,7 +161,8 @@ def post_mv(task, out, err):
         dst = task.args[2]
         dst_fpath = join(dst, src_fname)
         if exists(src_fpath) and isdir(dst) and not exists(dst_fpath):
-            print('[mv] {} -> {}'.format(src_fpath, dst_fpath))
+            print('[mv] src = [\033[1;35m{}\033[m]'.format(src_fpath))
+            print('[mv] dst = [\033[1;35m{}\033[m]'.format(dst_fpath))
             shutil.move(src_fpath, dst_fpath)
 
 post_move = post_mv
