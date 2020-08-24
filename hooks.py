@@ -115,7 +115,9 @@ def pre_rename(task):
     folder = dirname(task.args[1])
     src = basename(task.args[1])
     dst = basename(task.args[2])
-    print('[d rename] folder = {b[0]}\033[1;35m{f}\033[m{b[1]}'.format(f=folder, b='[]' if folder else '()'))
+    print('[d rename] folder = {b[0]}\033[1;35m{f}\033[m{b[1]}'.format(
+        f=(folder if folder else task.cwd).replace('/', '\033[0;35m/\033[1;35m'),
+        b='[]' if folder else '()'))
     print('[d rename] src = [\033[1;35m{}\033[m]'.format(src))
     print('[d rename] dst = [\033[1;35m{}\033[m]'.format(dst))
 
@@ -131,7 +133,9 @@ def post_rename(task, out, err):
         src = task.args[1]
         dst = join(folder, basename(task.args[2]))
         if exists(src) and not exists(dst):
-            print('[rename] folder = {b[0]}\033[1;35m{f}\033[m{b[1]}'.format(f=folder, b='[]' if folder else '()'))
+            print('[rename] folder = {b[0]}\033[1;35m{f}\033[m{b[1]}'.format(
+                f=(folder if folder else task.cwd).replace('/', '\033[0;35m/\033[1;35m'),
+                b='[]' if folder else '()'))
             print('[rename] src = [\033[1;35m{}\033[m]'.format(src))
             print('[rename] dst = [\033[1;35m{}\033[m]'.format(dst))
 
