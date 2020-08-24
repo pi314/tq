@@ -85,3 +85,8 @@ def get_drive_root(cwd=None):
         probe = dirname(probe)
 
     return None
+
+
+def timestamp():
+    now = datetime.now()
+    return now.strftime('%Y%m%d_%H%M%S_') + '%06d'%(now.microsecond)

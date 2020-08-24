@@ -1,12 +1,13 @@
+import shutil
 import sys
 
-from os.path import basename, join
+from os.path import dirname, basename, join, exists, isdir
 
-from . import telegram
+from . import lib_telegram
 
-from .logger import log_error
-from .task import Task
-from .utils import get_drive_root
+from .lib_logger import print_error
+from .lib_utils import get_drive_root
+from .models import Task
 
 
 def expand_gpath(cwd, gpath):
@@ -27,7 +28,7 @@ def pre_list(task):
 
 def post_list(task, out, err):
     if err:
-        log_error(err.decode('utf-8'), end="")
+        print_error(err.decode('utf-8'), end="")
         return
 
     for line in sorted(out.decode('utf-8').rstrip('\n').split('\n')):
@@ -64,10 +65,10 @@ def post_push(task, out, err):
     if '-h' in task.args:
         return
 
-    if task.block in (Task.NORMAL, Task.BLOCK):
-        telegram.send_msg(str(task))
+    if task.block in (Task.LOCAL, Task.BLOCK):
+        lib_telegram.send_msg(str(task))
     else:
-        telegram.notify_msg(str(task))
+        lib_telegram.notify_msg(str(task))
 
 
 pre_pull = pre_push
@@ -111,7 +112,57 @@ def pre_rename(task):
     task.args[1] = expand_gpath(task.cwd, task.args[1])
     task.args[2] = basename(task.args[2])
 
+    folder = dirname(task.args[1])
+    src = basename(task.args[1])
+    dst = basename(task.args[2])
+    print('[d rename] folder = {b[0]}\033[1;35m{f}\033[m{b[1]}'.format(f=folder, b='[]' if folder else '()'))
+    print('[d rename] src = [\033[1;35m{}\033[m]'.format(src))
+    print('[d rename] dst = [\033[1;35m{}\033[m]'.format(dst))
+
 
 def pre_renameq(task):
     task.block = Task.QUEUE
     return pre_rename(task)
+
+
+def post_rename(task, out, err):
+    if len(task.args) == 3:
+        folder = dirname(task.args[1])
+        src = task.args[1]
+        dst = join(folder, basename(task.args[2]))
+        if exists(src) and not exists(dst):
+            print('[rename] folder = {b[0]}\033[1;35m{f}\033[m{b[1]}'.format(f=folder, b='[]' if folder else '()'))
+            print('[rename] src = [\033[1;35m{}\033[m]'.format(src))
+            print('[rename] dst = [\033[1;35m{}\033[m]'.format(dst))
+
+
+def pre_mv(task):
+    dst = task.args[-1]
+
+    task_list = []
+    for src in task.args[1:-1]:
+        print('[d mv] src = [\033[1;35m{}\033[m]'.format(src))
+        print('[d mv] dst = [\033[1;35m{}\033[m]'.format(dst))
+        task_list.append(Task(
+            tid=Task.gen_tid(),
+            cwd=task.cwd,
+            cmd=task.cmd,
+            args=['mv', src, dst],
+            block=False,
+            ))
+
+    return task_list
+
+
+def post_mv(task, out, err):
+    if len(task.args) == 3:
+        src_fpath = task.args[1]
+        src_fname = basename(src_fpath)
+        dst = task.args[2]
+        dst_fpath = join(dst, src_fname)
+        if exists(src_fpath) and isdir(dst) and not exists(dst_fpath):
+            print('[mv] src = [\033[1;35m{}\033[m]'.format(src_fpath))
+            print('[mv] dst = [\033[1;35m{}\033[m]'.format(dst_fpath))
+            shutil.move(src_fpath, dst_fpath)
+
+post_move = post_mv

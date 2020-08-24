@@ -9,8 +9,8 @@ from threading import Thread
 from time import sleep
 from unicodedata import east_asian_width, normalize
 
-from .logger import log_error
-from .utils import get_drive_root, run
+from .lib_logger import print_error
+from .lib_utils import get_drive_root, run
 
 
 dindex_local = 'dindex.local'
@@ -166,7 +166,7 @@ def main(argv):
     params.driveignore = []
 
     if not params.root:
-        log_error('Drive context not found')
+        print_error('error', 'Drive context not found')
         return 1
 
     try:

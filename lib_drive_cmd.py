@@ -1,10 +1,10 @@
 from os import getcwd
 
-from . import utils
+from . import lib_utils
 from . import hooks
 
-from .chain import Chain
-from .task import Task
+from .lib_chain import Chain
+from .models import Task
 
 
 def get_hook(cmd):
@@ -27,7 +27,7 @@ def get_hook_post(cmd):
 def run(task):
     try:
         task.status = 'working'
-        p = utils.run(['drive', utils.eff_cmd.get(task.args[0], task.args[0])] + task.args[1:], capture_output=task.cap_out)
+        p = lib_utils.run(['drive', lib_utils.eff_cmd.get(task.args[0], task.args[0])] + task.args[1:], capture_output=task.cap_out)
         task.status = 'succeed' if (p.returncode == 0) else 'failed'
     except KeyboardInterrupt:
         task.status = 'interrupted'

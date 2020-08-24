@@ -5,8 +5,8 @@ import json
 
 from queue import Queue
 
-from . import config
-from . import utils
+from . import lib_config
+from . import lib_utils
 
 
 msg_queue = Queue()
@@ -14,14 +14,14 @@ msg_queue = Queue()
 
 def enable():
     token = init_token()
-    config.set('telegram', 'token', token)
+    lib_config.set('telegram', 'token', token)
 
     chat_id = init_chat_id()
-    config.set('telegram', 'chat_id', chat_id)
+    lib_config.set('telegram', 'chat_id', chat_id)
 
 
 def telegram_api(*args, **kwargs):
-    token = config.get('telegram', 'token')
+    token = lib_config.get('telegram', 'token')
 
     retry_count = 0
     while retry_count < 3:
@@ -44,10 +44,10 @@ def telegram_api(*args, **kwargs):
 
 
 def init_token():
-    token = config.get('telegram', 'token')
+    token = lib_config.get('telegram', 'token')
 
     if token:
-        yn = utils.ask('Override existing token? {}'.format(token), 'ny')
+        yn = lib_utils.ask('Override existing token? {}'.format(token), 'ny')
         if not yn or yn == 'n':
             return token
 
@@ -69,11 +69,11 @@ def init_token():
 
 
 def init_chat_id():
-    token = config.get('telegram', 'token')
-    chat_id = config.get('telegram', 'chat_id')
+    token = lib_config.get('telegram', 'token')
+    chat_id = lib_config.get('telegram', 'chat_id')
 
     if chat_id:
-        yn = utils.ask('Override existing chat_id? {}'.format(chat_id), 'ny')
+        yn = lib_utils.ask('Override existing chat_id? {}'.format(chat_id), 'ny')
         if not yn or yn == 'n':
             return chat_id
 
@@ -107,8 +107,8 @@ def init_chat_id():
 
 
 def send_msg(text):
-    token = config.get('telegram', 'token')
-    chat_id = config.get('telegram', 'chat_id')
+    token = lib_config.get('telegram', 'token')
+    chat_id = lib_config.get('telegram', 'chat_id')
 
     if not token or not chat_id:
         print('token or chat_id is not initialized, abort sending notification')
@@ -118,7 +118,7 @@ def send_msg(text):
         'Content-Type': 'application/json; charset=utf-8',
     }
     message = {
-        'chat_id': config.get('telegram', 'chat_id'),
+        'chat_id': lib_config.get('telegram', 'chat_id'),
         'text': text,
     }
     req = urllib.request.Request(
@@ -130,7 +130,7 @@ def send_msg(text):
     res = telegram_api(req)
 
 
-def loop_start():
+def start():
     while True:
         msg = msg_queue.get()
 
