@@ -1,7 +1,7 @@
 import shutil
 import sys
 
-from os.path import dirname, basename, join, exists, isdir
+from os.path import dirname, basename, join, exists, isdir, relpath
 
 from . import lib_telegram
 
@@ -31,9 +31,12 @@ def post_list(task, out, err):
         print_error(err.decode('utf-8'), end="")
         return
 
+    droot = get_drive_root(task.cwd)
+
     for line in sorted(out.decode('utf-8').rstrip('\n').split('\n')):
         line = line.rstrip()
-        print(line)
+        full_path = join(droot, line.lstrip('/'))
+        print(relpath(full_path, task.cwd))
 
 
 def pre_push(task):
