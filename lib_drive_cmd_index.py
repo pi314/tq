@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import re
 import subprocess as sub
 
@@ -56,7 +57,7 @@ def ignore_fname(driveignore, fname):
 
 def index_local(params):
     count = 0
-    plist = []
+    flist = []
     for root, subdirs, files in walk(params.cwd):
         for f in files:
             if ignore_fname(params.driveignore, f):
@@ -68,11 +69,17 @@ def index_local(params):
             depth_cwd = len(params.cwd.split('/'))
             depth_root = len(root.split('/'))
 
-            line = (join(root, f)[len(params.cwd)+1:])
-            plist.append(line)
+            hexdigest = '-' * 32
+            with open(join(root, f), 'rb') as f_:
+                m = hashlib.md5()
+                m.update(f_.read())
+                hexdigest = m.hexdigest()
+
+            fpath = join(root, f)[len(params.cwd)+1:]
+            flist.append((hexdigest, fpath))
 
             count += 1
-            print_nowrap('[local ] {count}: {line}'.format(count=count, line=line), end='')
+            print_nowrap('[local ] {count}: {fpath}'.format(count=count, fpath=fpath), end='')
 
         if params.depth != 0:
             depth_cwd = len(params.cwd.split('/'))
@@ -84,15 +91,15 @@ def index_local(params):
         for r in removee:
             subdirs.remove(r)
 
-    print_nowrap('[local ] {count} items indexed'.format(count=len(plist)))
+    print_nowrap('[local ] {count} items indexed'.format(count=len(flist)))
 
     with open(dindex_local, 'wb') as f:
-        for p in sorted(plist):
-            writeline(f, p)
+        for md5sum, fpath in sorted(flist, key=lambda x: x[1]):
+            writeline(f, '{md5sum} {fpath}'.format(md5sum=md5sum, fpath=fpath))
 
 
 def index_remote(params):
-    cmd = 'drive list -files -recursive -no-prompt'.split()
+    cmd = 'drive md5sum -recursive'.split()
     if params.depth != 0:
         cmd.remove('-recursive')
         cmd += ['-depth', str(params.depth)]
@@ -101,31 +108,26 @@ def index_remote(params):
 
     p = sub.Popen(cmd, stdout=sub.PIPE)
 
-    plist = []
+    flist = []
     count = 0
     for line in iter(p.stdout.readline, b''):
         line = line.decode('utf-8').rstrip('\n')
         if not line: continue
 
-        if line.startswith('/'):
-            line = line[1:]
+        md5sum, fpath = line[0:32], line[34:]
 
         count += 1
-        print_nowrap('[remote] {count}: {line}'.format(count=count, line=line), end='')
+        print_nowrap('[remote] {count}: {fpath}'.format(count=count, fpath=fpath), end='')
 
-        if params.cwd == params.root:
-            plist.append(line[line.index('/')+1:])
-        else:
-            plist.append(join(params.root, line)[len(params.cwd)+1:])
+        flist.append((md5sum, fpath))
 
         sleep(0.01)
 
-
-    print_nowrap('[remote] {count} items indexed'.format(count=len(plist)))
+    print_nowrap('[remote] {count} items indexed'.format(count=len(flist)))
 
     with open(dindex_remote, 'wb') as f:
-        for p in sorted(plist):
-            writeline(f, p)
+        for md5sum, fpath in sorted(flist, key=lambda x: x[1]):
+            writeline(f, '{md5sum} {fpath}'.format(md5sum=md5sum, fpath=fpath))
 
 
 def main(argv):
@@ -187,5 +189,8 @@ def main(argv):
         print('KeyboardInterrupt')
         return 1
 
-    print('[local ] index file:', dindex_local)
-    print('[remote] index file:', dindex_remote)
+    if params.local:
+        print('[local ] index file:', dindex_local)
+
+    if params.remote:
+        print('[remote] index file:', dindex_remote)
