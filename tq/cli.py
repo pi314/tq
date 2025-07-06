@@ -5,6 +5,8 @@ from os.path import basename
 
 from . import __version__
 
+from . import core_server
+
 
 def main():
     prog = basename(sys.argv[0])
@@ -15,5 +17,8 @@ def main():
     parser.add_argument('-v', '--version', action='version', version=f'tq {__version__}')
 
     args = parser.parse_args()
+
     print('tq wip')
-    sys.exit(1)
+
+    from .core_daemon import spawn
+    spawn(core_server.serve)
