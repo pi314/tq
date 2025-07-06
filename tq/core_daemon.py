@@ -63,9 +63,15 @@ def spawn(daemon_main):
         sys.stderr.write(f'fork #2 failed: {e.errno} (e.strerror)\n')
         sys.exit(1)
 
-    atexit.register(del_pid_file)
-
     write_pid_file()
+
+    # read pid file back to make sure it's me
+    daemon_pid = read_pid_file()
+    if daemon_pid is not None and daemon_pid != os.getpid():
+        sys.stderr.write(f'self pid {os.getpid()} != daemon pid {daemon_pid}')
+        sys.exit(1)
+
+    atexit.register(del_pid_file)
 
     # redirect standard file descriptors
     sys.stdout.flush()
