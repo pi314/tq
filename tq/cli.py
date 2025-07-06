@@ -12,6 +12,8 @@ def main():
 
     parser = argparse.ArgumentParser(prog=prog, description='tq')
 
-    print(__version__)
+    parser.add_argument('-v', '--version', action='version', version=f'tq {__version__}')
+
+    args = parser.parse_args()
     print('tq wip')
     sys.exit(1)
