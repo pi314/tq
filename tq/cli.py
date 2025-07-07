@@ -13,7 +13,6 @@ def main():
     argv = sys.argv[1:]
 
     parser = argparse.ArgumentParser(prog=prog, description='tq')
-
     parser.add_argument('-v', '--version', action='version', version=f'tq {__version__}')
 
     args = parser.parse_args()
@@ -21,4 +20,4 @@ def main():
     print('tq wip')
 
     from .core_daemon import spawn
-    spawn(core_server.serve)
+    print(f'daemon pid = {spawn(core_server.serve)}')

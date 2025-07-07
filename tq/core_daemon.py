@@ -8,10 +8,8 @@ TQ_PID_FNAME = '.tq.pid'
 
 def read_pid_file():
     pid_file = pathlib.Path.home() / TQ_PID_FNAME
-
     if not pid_file.exists():
         return
-
     try:
         with open(pid_file) as f:
             return int(f.read(), 10)
@@ -21,7 +19,6 @@ def read_pid_file():
 
 def write_pid_file():
     pid_file = pathlib.Path.home() / TQ_PID_FNAME
-
     try:
         with open(pid_file, 'w') as f:
             import os
@@ -45,10 +42,12 @@ def spawn(daemon_main):
         sys.exit(1)
 
     try:
+        r, w = os.pipe()
         pid = os.fork()
         if pid > 0:
             # exit first parent
-            return
+            # readline() is necessary over read()
+            return int(os.fdopen(r).readline().strip())
     except OSError as e:
         sys.stderr.write(f'fork #1 failed: {e.errno} (e.strerror)\n')
         sys.exit(1)
@@ -72,6 +71,9 @@ def spawn(daemon_main):
         sys.exit(1)
 
     atexit.register(del_pid_file)
+
+    # newline is necessary
+    os.write(w, f'{daemon_pid}\n'.encode('utf8'))
 
     # redirect standard file descriptors
     sys.stdout.flush()
