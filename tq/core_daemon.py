@@ -3,24 +3,24 @@ import pathlib
 
 from os.path import expanduser, exists
 
-TQ_PID_FNAME = '.tq.pid'
+from .config import TQ_DIR, TQ_PID_FILE
+from .core_server import serve
 
 
 def read_pid_file():
-    pid_file = pathlib.Path.home() / TQ_PID_FNAME
-    if not pid_file.exists():
+    if not TQ_PID_FILE.exists():
         return
     try:
-        with open(pid_file) as f:
+        with open(TQ_PID_FILE) as f:
             return int(f.read(), 10)
     except:
         return
 
 
 def write_pid_file():
-    pid_file = pathlib.Path.home() / TQ_PID_FNAME
+    TQ_DIR.mkdir(parents=True, exist_ok=True)
     try:
-        with open(pid_file, 'w') as f:
+        with open(TQ_PID_FILE, 'w') as f:
             import os
             f.write(f'{os.getpid()}\n')
     except:
@@ -28,18 +28,17 @@ def write_pid_file():
 
 
 def del_pid_file():
-    pid_file = pathlib.Path.home() / TQ_PID_FNAME
-    pid_file.unlink(missing_ok=True)
+    TQ_PID_FILE.unlink(missing_ok=True)
+    TQ_DIR.unlink(missing_ok=True)
 
 
-def spawn(daemon_main):
+def spawn():
     import os
     import sys
 
     daemon_pid = read_pid_file()
     if daemon_pid is not None and daemon_pid != os.getpid():
-        sys.stderr.write(f'Already running {daemon_pid}\n')
-        sys.exit(1)
+        return daemon_pid
 
     try:
         r, w = os.pipe()
@@ -47,7 +46,10 @@ def spawn(daemon_main):
         if pid > 0:
             # exit first parent
             # readline() is necessary over read()
-            return int(os.fdopen(r).readline().strip())
+            try:
+                return int(os.fdopen(r).readline().strip())
+            except ValueError:
+                return
     except OSError as e:
         sys.stderr.write(f'fork #1 failed: {e.errno} (e.strerror)\n')
         sys.exit(1)
@@ -67,7 +69,7 @@ def spawn(daemon_main):
     # read pid file back to make sure it's me
     daemon_pid = read_pid_file()
     if daemon_pid is not None and daemon_pid != os.getpid():
-        sys.stderr.write(f'self pid {os.getpid()} != daemon pid {daemon_pid}')
+        os.write(w, f'{daemon_pid}\n'.encode('utf8'))
         sys.exit(1)
 
     atexit.register(del_pid_file)
@@ -85,4 +87,4 @@ def spawn(daemon_main):
     os.dup2(so.fileno(), sys.stdout.fileno())
     os.dup2(se.fileno(), sys.stderr.fileno())
 
-    daemon_main()
+    serve()

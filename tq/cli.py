@@ -5,8 +5,6 @@ from os.path import basename
 
 from . import __version__
 
-from . import core_server
-
 
 def main():
     prog = basename(sys.argv[0])
@@ -20,4 +18,4 @@ def main():
     print('tq wip')
 
     from .core_daemon import spawn
-    print(f'daemon pid = {spawn(core_server.serve)}')
+    print(f'daemon pid = {spawn()}')
