@@ -4,6 +4,7 @@ import sys
 from os.path import basename
 
 from . import __version__
+from . import api
 
 
 def main():
@@ -17,5 +18,15 @@ def main():
 
     print('tq wip')
 
-    from .core_daemon import spawn
-    print(f'daemon pid = {spawn()}')
+    conn = api.connect()
+    print(f'daemon pid = {conn.pid}')
+    try:
+        with conn:
+            while True:
+                data = conn.recv()
+                print(data)
+                if data == '[bye]':
+                    break
+                conn.send(input())
+    except Exception as e:
+        print(e)
