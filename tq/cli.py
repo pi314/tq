@@ -19,14 +19,24 @@ def main():
     print('tq wip')
 
     conn = api.connect()
+    if not conn:
+        print('Connection failed')
+        sys.exit(1)
+
     print(f'daemon pid = {conn.pid}')
     try:
         with conn:
             while True:
                 data = conn.recv()
                 print(data)
-                if data == '[bye]':
+                if not data or data == 'bye':
                     break
-                conn.send(input())
+
+                i = input()
+                if i.strip() == '':
+                    conn.close()
+                if i.strip() == 'quit':
+                    break
+                conn.send(i)
     except Exception as e:
         print(e)

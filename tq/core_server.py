@@ -3,12 +3,20 @@ import sys
 
 import atexit
 import pathlib
+import queue
+import threading
 
 from os.path import expanduser, exists
 
 from . import core_channel
 from .config import TQ_DIR, TQ_PID_FILE
 from .config import TQ_LOG_FILE_PREFIX
+
+logger = None
+
+ss = None
+Q = None
+bye = None
 
 
 def read_pid_file():
@@ -38,9 +46,28 @@ def del_pid_file():
         pass
 
 
-def spawn():
-    import sys
+def detect():
+    pid = read_pid_file()
+    if pid is None:
+        return None
 
+    if not core_channel.TQAddr(pid).file.exists():
+        del_pid_file()
+        return None
+
+    return pid
+
+
+def stop():
+    bye.set()
+    Q.put(None)
+    ss.close()
+
+    # import signal
+    # os.kill(os.getpid(), signal.SIGINT)
+
+
+def spawn():
     daemon_pid = read_pid_file()
     if daemon_pid is not None and daemon_pid != os.getpid():
         return daemon_pid
@@ -74,10 +101,14 @@ def spawn():
     # read pid file back to make sure it's me
     daemon_pid = read_pid_file()
     if daemon_pid is not None and daemon_pid != os.getpid():
-        ready(daemon_pid)
+        onready(daemon_pid)
         sys.exit(1)
 
-    atexit.register(del_pid_file)
+    def onexit():
+        logger.info('onexit')
+        del_pid_file()
+
+    atexit.register(onexit)
 
     # redirect standard file descriptors
     sys.stdout.flush()
@@ -89,53 +120,97 @@ def spawn():
     os.dup2(so.fileno(), sys.stdout.fileno())
     os.dup2(se.fileno(), sys.stderr.fileno())
 
-    def ready(pid):
+    def onready():
+        logger.info('server ready')
+
         # newline is necessary
-        os.write(w, f'{pid}\n'.encode('utf8'))
+        os.write(w, f'{os.getpid()}\n'.encode('utf8'))
 
-    serve(lambda: ready(os.getpid()))
+    boot(onready)
 
 
-def serve(ready_callback):
-    pid = os.getpid()
-    ss = core_channel.create_server_socket(pid)
+def boot(onready):
+    global logger
+    global Q
+    global bye
 
     import logging
     logger = logging.getLogger(__name__)
-    logging.basicConfig(filename=f'{TQ_DIR / TQ_LOG_FILE_PREFIX}{pid}', level=logging.INFO,
+    logging.basicConfig(filename=f'{TQ_DIR / TQ_LOG_FILE_PREFIX}{os.getpid()}', level=logging.INFO,
                         format='[%(asctime)s] %(message)s')
 
-    with ss:
-        logger.info(f'server start {pid}')
-        ready_callback()
+    logger.info(f'logger ready, pid={os.getpid()}')
 
-        try:
-            while True:
+    bye = threading.Event()
+
+    Q = queue.Queue()
+
+    logger.info('start worker thread')
+    t1 = threading.Thread(target=worker, daemon=True)
+    t1.start()
+
+    logger.info('start listener thread')
+    t2 = threading.Thread(target=listener, args=(onready,), daemon=True)
+    t2.start()
+
+    t1.join()
+    t2.join()
+
+    logger.info('server quit')
+
+
+def listener(onready):
+    global ss
+
+    ss = core_channel.create_server_socket(os.getpid())
+
+    try:
+        with ss:
+            onready()
+
+            while not bye.is_set():
                 conn = ss.accept()
-                logger.info('client helo')
-                conn.send('[helo]')
-                while True:
-                    data = conn.recv()
-                    if not data:
-                        break
+                Q.put(conn)
 
-                    logger.info(f'client say {data}')
+    except (Exception, KeyboardInterrupt, SystemExit) as e:
+        logger.exception(e)
 
-                    if data == 'quit':
-                        logger.info('quit')
-                        conn.send('[bye]')
-                        sys.exit(0)
+    logger.info('listener bye')
 
-                    elif data == 'pid':
-                        logger.info(f'pid {pid}')
-                        conn.send(f'{pid}')
 
-                    else:
-                        logger.info(f'server echo {data}')
-                        conn.send(f'[{data}]')
+def worker():
+    try:
+        while not bye.is_set():
+            conn = Q.get()
+            if conn:
+                handle_client(conn)
 
-                logger.info('client bye')
-        except Exception as e:
-            logger.info(e)
+    except (Exception, KeyboardInterrupt, SystemExit) as e:
+        logger.exception(e)
 
-        logger.info('server bye')
+    logger.info('worker bye')
+
+
+def handle_client(conn):
+    logger.info('client helo')
+    conn.send('[helo]')
+    while True:
+        data = conn.recv()
+        if not data:
+            break
+
+        logger.info(f'client {data}')
+
+        if data == 'stop':
+            conn.send('bye')
+            stop()
+
+        elif data == 'pid':
+            logger.info(f'pid {pid}')
+            conn.send(f'{pid}')
+
+        else:
+            logger.info(f'server {data}')
+            conn.send(f'[{data}]')
+
+    logger.info('client bye')

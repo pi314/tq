@@ -43,8 +43,11 @@ class TQServerSocket:
         self.addr.file.unlink(missing_ok=True)
 
     def accept(self):
-        conn, addr = self.ss.accept()
-        return TQConnection(self.pid, conn)
+        try:
+            conn, addr = self.ss.accept()
+            return TQConnection(self.pid, conn)
+        except ConnectionAbortedError:
+            pass
 
 
 class TQConnection(TQAddr):
