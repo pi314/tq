@@ -6,17 +6,18 @@ import pathlib
 import queue
 import threading
 
+import logging
+
 from os.path import expanduser, exists
 
 from . import channel
 from .channel import TQServerCommand, TQServerCommandResult
 from .config import TQ_DIR, TQ_PID_FILE
-from .config import TQ_LOG_FILE_PREFIX
+from .config import TQ_LOG_FNAME
 
 logger = None
 
 ss = None
-Q = None
 bye = None
 
 
@@ -61,7 +62,6 @@ def detect():
 
 def despawn():
     bye.set()
-    Q.put(None)
     ss.close()
 
     # import signal
@@ -106,7 +106,7 @@ def spawn():
         sys.exit(1)
 
     def onexit():
-        logger.info('onexit')
+        logging.info('onexit')
         del_pid_file()
 
     atexit.register(onexit)
@@ -122,7 +122,7 @@ def spawn():
     os.dup2(se.fileno(), sys.stderr.fileno())
 
     def onready():
-        logger.info('server ready')
+        logging.info(f'server ready')
 
         # newline is necessary
         os.write(w, f'{os.getpid()}\n'.encode('utf8'))
@@ -132,35 +132,36 @@ def spawn():
 
 def boot(onready):
     global logger
-    global Q
     global bye
 
-    import logging
-    logger = logging.getLogger(__name__)
-    logging.basicConfig(filename=f'{TQ_DIR / TQ_LOG_FILE_PREFIX}{os.getpid()}', level=logging.INFO,
-                        format='[%(asctime)s] %(message)s')
+    from logging.handlers import RotatingFileHandler
+    one_mb = 1024 * 1024
+    logging.basicConfig(
+            handlers=[RotatingFileHandler(
+                filename=f'{TQ_DIR / TQ_LOG_FNAME}', maxBytes=one_mb, backupCount=5
+                )],
+            level=logging.INFO,
+            datefmt='%Y-%m-%d %H:%M:%S',
+            format=f'[%(asctime)s.%(msecs)03d][{os.getpid()}] %(message)s')
 
-    logger.info(f'logger ready, pid={os.getpid()}')
+    logging.info('=' * 42)
 
     bye = threading.Event()
 
-    Q = queue.Queue()
+    logging.info('start frontdesk thread')
+    t = threading.Thread(target=frontdesk, args=(onready,), daemon=True)
+    t.start()
 
-    logger.info('start worker thread')
-    t1 = threading.Thread(target=worker, daemon=True)
-    t1.start()
+    try:
+        t.join()
+    except (Exception, KeyboardInterrupt, SystemExit) as e:
+        logging.exception(e)
 
-    logger.info('start listener thread')
-    t2 = threading.Thread(target=listener, args=(onready,), daemon=True)
-    t2.start()
-
-    t1.join()
-    t2.join()
-
-    logger.info('server quit')
+    logging.info('server quit')
 
 
-def listener(onready):
+def frontdesk(onready):
+    logging.info('frontdesk ready')
     global ss
 
     ss = channel.TQServerSocket(os.getpid())
@@ -170,55 +171,40 @@ def listener(onready):
             onready()
             while not bye.is_set():
                 conn = ss.accept()
-                Q.put(conn)
+                if conn:
+                    logging.info('client connected')
+                    try:
+                        handle_client(conn)
+                    except BrokenPipeError as e:
+                        logging.info('client BrokenPipeError')
+                    logging.info('client disconnected')
 
     except (Exception, KeyboardInterrupt, SystemExit) as e:
-        logger.exception(e)
+        logging.exception(e)
 
-    logger.info('listener bye')
-
-
-def worker():
-    while not bye.is_set():
-        logger.info('worker start')
-        try:
-            while not bye.is_set():
-                try:
-                    conn = Q.get()
-                    if conn:
-                        handle_client(conn)
-                except BrokenPipeError as e:
-                    logger.info('client disconnected')
-
-        except (Exception, KeyboardInterrupt, SystemExit) as e:
-            logger.exception(e)
-
-        logger.info('worker bye')
+    logging.info('frontdesk bye')
 
 
 def handle_client(conn):
-    logger.info('client connected')
     while not bye.is_set():
         cmd = conn.recv()
         if not cmd:
             break
 
         if not isinstance(cmd, TQServerCommand):
-            logger.info(f'client {cmd}')
+            logging.info(f'client {cmd}')
             conn.send(TQServerCommandResult(400))
             break
 
-        logger.info(f'client cmd={cmd.cmd}')
+        logging.info(f'client cmd={cmd.cmd}')
 
         if cmd.cmd == 'despawn':
             despawn()
 
         elif cmd.cmd == 'echo':
-            logger.info(f'server {cmd.cmd}, {cmd.args}, {cmd.kwargs}')
+            logging.info(f'server {cmd.cmd}, {cmd.args}, {cmd.kwargs}')
             conn.send(TQServerCommandResult(200, *cmd.args, **cmd.kwargs))
 
         else:
-            logger.info(f'server 400 {cmd.cmd}')
+            logging.info(f'server 400 {cmd.cmd}')
             conn.send(TQServerCommandResult(400, cmd.cmd))
-
-    logger.info('client bye')

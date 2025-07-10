@@ -28,7 +28,6 @@ def main():
     try:
         with conn:
             while conn:
-                print(conn.alive)
                 i = input().strip()
                 if i == '':
                     tq.bye()
