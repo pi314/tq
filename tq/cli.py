@@ -30,6 +30,7 @@ def main():
             while conn:
                 i = input().strip()
                 if i == '':
+                    print('bye')
                     tq.bye()
                     break
                 elif i in ('quit', 'stop', 'shutdown'):
