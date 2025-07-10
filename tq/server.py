@@ -1,8 +1,6 @@
 import os
 import sys
 
-import atexit
-import pathlib
 import queue
 import threading
 
@@ -10,54 +8,26 @@ import logging
 
 from os.path import expanduser, exists
 
+from . import daemon
 from . import channel
 from .channel import TQServerCommand, TQServerCommandResult
-from .config import TQ_DIR, TQ_PID_FILE
-from .config import TQ_LOG_FNAME
-
-logger = None
+from .config import TQ_DIR, TQ_LOG_FNAME
 
 ss = None
 bye = None
 
 
-def read_pid_file():
-    if not TQ_PID_FILE.exists():
-        return
-    try:
-        with open(TQ_PID_FILE) as f:
-            return int(f.read(), 10)
-    except:
-        return
+def spawn():
+    daemon_pid = daemon.read_pid_file()
+    if daemon_pid is not None and daemon_pid != os.getpid():
+        return daemon_pid
 
+    ret = daemon.spawn()
+    if isinstance(ret, int) or ret is None:
+        return ret
 
-def write_pid_file():
-    TQ_DIR.mkdir(parents=True, exist_ok=True)
-    try:
-        with open(TQ_PID_FILE, 'w') as f:
-            f.write(f'{os.getpid()}\n')
-    except:
-        return
-
-
-def del_pid_file():
-    TQ_PID_FILE.unlink(missing_ok=True)
-    try:
-        TQ_DIR.unlink(missing_ok=True)
-    except PermissionError:
-        pass
-
-
-def detect():
-    pid = read_pid_file()
-    if pid is None:
-        return None
-
-    if not channel.TQAddr(pid).file.exists():
-        del_pid_file()
-        return None
-
-    return pid
+    onready = ret
+    boot(onready)
 
 
 def despawn():
@@ -68,70 +38,7 @@ def despawn():
     # os.kill(os.getpid(), signal.SIGINT)
 
 
-def spawn():
-    daemon_pid = read_pid_file()
-    if daemon_pid is not None and daemon_pid != os.getpid():
-        return daemon_pid
-
-    try:
-        r, w = os.pipe()
-        pid = os.fork()
-        if pid > 0:
-            # exit first parent
-            # readline() is necessary over read()
-            try:
-                return int(os.fdopen(r).readline().strip())
-            except ValueError:
-                return
-    except OSError as e:
-        sys.stderr.write(f'fork #1 failed: {e.errno} (e.strerror)\n')
-        sys.exit(1)
-
-    # do second fork
-    try:
-        pid = os.fork()
-        if pid > 0:
-            # exit from second parent
-            sys.exit(0)
-    except OSError as e:
-        sys.stderr.write(f'fork #2 failed: {e.errno} (e.strerror)\n')
-        sys.exit(1)
-
-    write_pid_file()
-
-    # read pid file back to make sure it's me
-    daemon_pid = read_pid_file()
-    if daemon_pid is not None and daemon_pid != os.getpid():
-        onready(daemon_pid)
-        sys.exit(1)
-
-    def onexit():
-        logging.info('onexit')
-        del_pid_file()
-
-    atexit.register(onexit)
-
-    def onready():
-        # redirect standard file descriptors
-        sys.stdout.flush()
-        sys.stderr.flush()
-        si = open(os.devnull, 'r')
-        so = open(os.devnull, 'w')
-        se = open(os.devnull, 'w')
-        os.dup2(si.fileno(), sys.stdin.fileno())
-        os.dup2(so.fileno(), sys.stdout.fileno())
-        os.dup2(se.fileno(), sys.stderr.fileno())
-
-        logging.info(f'server ready')
-
-        # newline is necessary
-        os.write(w, f'{os.getpid()}\n'.encode('utf8'))
-
-    boot(onready)
-
-
 def boot(onready):
-    global logger
     global bye
 
     from logging.handlers import RotatingFileHandler
@@ -148,27 +55,33 @@ def boot(onready):
 
     bye = threading.Event()
 
+    logging.info('start worker thread')
+    t1 = threading.Thread(target=worker_thread, daemon=True)
+    t1.start()
+
     logging.info('start frontdesk thread')
-    t = threading.Thread(target=frontdesk, args=(onready,), daemon=True)
-    t.start()
+    t2 = threading.Thread(target=frontdesk_thread, args=(onready,), daemon=True)
+    t2.start()
 
     try:
-        t.join()
+        t1.join()
+        t2.join()
     except (Exception, KeyboardInterrupt, SystemExit) as e:
         logging.exception(e)
 
     logging.info('server quit')
+    sys.exit(0)
 
 
-def frontdesk(onready):
-    logging.info('frontdesk ready')
+def frontdesk_thread(onready):
+    logging.info('frontdesk thread start')
     global ss
 
     ss = channel.TQServerSocket(os.getpid())
 
     try:
         with ss:
-            onready()
+            onready(os.getpid())
             while not bye.is_set():
                 conn = ss.accept()
                 if conn:
@@ -182,7 +95,7 @@ def frontdesk(onready):
     except (Exception, KeyboardInterrupt, SystemExit) as e:
         logging.exception(e)
 
-    logging.info('frontdesk bye')
+    logging.info('frontdesk thread bye')
 
 
 def handle_client(conn):
@@ -208,3 +121,8 @@ def handle_client(conn):
         else:
             logging.info(f'server 400 {cmd.cmd}')
             conn.send(TQServerCommandResult(400, cmd.cmd))
+
+
+def worker_thread():
+    logging.info('worker thread start')
+    logging.info('worker thread bye')

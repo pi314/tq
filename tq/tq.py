@@ -1,6 +1,7 @@
 import os
 import json
 
+from . import daemon
 from . import server
 from . import channel
 
@@ -9,7 +10,7 @@ _session = None
 
 
 def detect():
-    return server.detect()
+    return daemon.detect()
 
 
 def spawn():
@@ -27,7 +28,6 @@ def connect(spawn=True):
 
     if server_pid:
         _session = channel.TQSession(server_pid)
-
     else:
         _session = channel.TQNotSession()
 
