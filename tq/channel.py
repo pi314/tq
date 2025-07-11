@@ -88,8 +88,8 @@ class TQSession(TQAddr):
             self.conn.close()
             self.conn = None
 
-    def send(self, cmd):
-        self.conn.sendall(cmd.serialize())
+    def send(self, msg):
+        self.conn.sendall(msg.serialize())
 
     def recv(self):
         raw_data = b''
@@ -98,18 +98,12 @@ class TQSession(TQAddr):
             raw_data += payload
 
             try:
-                data = json.loads(raw_data.decode('utf8'))
+                return TQMessage(json.loads(raw_data.decode('utf8')))
             except ValueError:
                 if not payload:
-                    return TQRawMessage(raw_data)
-                continue
-
-            cmd = data.get('cmd')
-            status = data.get('status')
-            args = data.get('args')
-            kwargs = data.get('kwargs')
-            msg_type = TQServerCommand if cmd else TQServerCommandResult
-            return msg_type(cmd or status, *args, **kwargs)
+                    return TQMessage(raw_data)
+                else:
+                    continue
 
 
 class TQNotSession:
@@ -126,40 +120,36 @@ class TQNotSession:
         return False
 
 
-class TQRawMessage:
+class TQMessage:
     def __init__(self, data):
-        self.data = data
-
-    def __repr__(self):
-        return f'TQRawMessage({self.data})'
+        super().__setattr__('data', data)
 
     def __bool__(self):
-        return not not self.data
+        return bool(self.data)
 
+    def __repr__(self):
+        return f'TQMessage(data={self.data})'
 
-class TQServerCommand:
-    def __init__(self, cmd, *args, **kwargs):
-        self.cmd = cmd
-        self.args = args
-        self.kwargs = kwargs
-
-    def serialize(self):
-        return json.dumps({
-            'cmd': self.cmd,
-            'args': self.args,
-            'kwargs': self.kwargs,
-            }).encode('utf8')
-
-
-class TQServerCommandResult:
-    def __init__(self, status, *args, **kwargs):
-        self.status = status
-        self.args = args
-        self.kwargs = kwargs
+    def __getattr__(self, attr):
+        if isinstance(self.data, dict):
+            return self.data.get(attr)
 
     def serialize(self):
-        return json.dumps({
-            'status': self.status,
-            'args': self.args,
-            'kwargs': self.kwargs,
-            }).encode('utf8')
+        import json
+        return json.dumps(self.data).encode('utf8')
+
+
+class TQCommand(TQMessage):
+    def __init__(self, cmd, **kwargs):
+        super().__init__({
+            'cmd': cmd,
+            'kwargs': kwargs,
+            })
+
+
+class TQResult(TQMessage):
+    def __init__(self, res, **kwargs):
+        super().__init__({
+            'res': res,
+            'kwargs': kwargs,
+            })

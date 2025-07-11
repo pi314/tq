@@ -10,7 +10,6 @@ from os.path import expanduser, exists
 
 from . import daemon
 from . import channel
-from .channel import TQServerCommand, TQServerCommandResult
 from .config import TQ_DIR, TQ_LOG_FNAME
 
 ss = None
@@ -30,8 +29,9 @@ def spawn():
     boot(onready)
 
 
-def despawn():
+def shutdown():
     bye.set()
+    logging.info('shutdown()')
     ss.close()
 
     # import signal
@@ -66,8 +66,10 @@ def boot(onready):
     try:
         t1.join()
         t2.join()
-    except (Exception, KeyboardInterrupt, SystemExit) as e:
+    except (Exception, SystemExit) as e:
         logging.exception(e)
+    except KeyboardInterrupt as e:
+        logging.info('KeyboardInterrupt')
 
     logging.info('server quit')
     sys.exit(0)
@@ -90,6 +92,9 @@ def frontdesk_thread(onready):
                         handle_client(conn)
                     except BrokenPipeError as e:
                         logging.info('client BrokenPipeError')
+                    except (Exception, KeyboardInterrupt, SystemExit) as e:
+                        logging.exception(e)
+                    conn.close()
                     logging.info('client disconnected')
 
     except (Exception, KeyboardInterrupt, SystemExit) as e:
@@ -99,28 +104,26 @@ def frontdesk_thread(onready):
 
 
 def handle_client(conn):
+    from .channel import TQResult
+
     while not bye.is_set():
-        cmd = conn.recv()
-        if not cmd:
+        msg = conn.recv()
+        if not msg:
             break
 
-        if not isinstance(cmd, TQServerCommand):
-            logging.info(f'client {cmd}')
-            conn.send(TQServerCommandResult(400))
-            break
+        logging.info(f'client msg={msg}')
 
-        logging.info(f'client cmd={cmd.cmd}')
+        if msg.cmd == 'shutdown':
+            shutdown()
 
-        if cmd.cmd == 'despawn':
-            despawn()
-
-        elif cmd.cmd == 'echo':
-            logging.info(f'server {cmd.cmd}, {cmd.args}, {cmd.kwargs}')
-            conn.send(TQServerCommandResult(200, *cmd.args, **cmd.kwargs))
+        elif msg.cmd == 'echo':
+            logging.info(f'server echo {msg.kwargs}')
+            conn.send(TQResult(200, **msg.kwargs))
 
         else:
-            logging.info(f'server 400 {cmd.cmd}')
-            conn.send(TQServerCommandResult(400, cmd.cmd))
+            logging.info(f'server 400')
+            conn.send(TQResult(400))
+            break
 
 
 def worker_thread():

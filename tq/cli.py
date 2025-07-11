@@ -36,15 +36,13 @@ def main():
                 elif i in ('quit', 'stop', 'shutdown'):
                     res = tq.shutdown()
                 else:
-                    res = tq.echo(i)
+                    res = tq.echo(msg=i)
 
-                try:
-                    print(res.status, res.args, res.kwargs)
-                except:
+                if res.res is None:
                     print(res)
-
-                if not res or res.args == ['bye']:
                     break
 
+                print(res)
+
     except Exception as e:
-        print(e)
+        raise e

@@ -9,12 +9,23 @@ from . import channel
 _session = None
 
 
+msg_not_connected = channel.TQResult(401, msg='Not connected')
+
+
 def detect():
     return daemon.detect()
 
 
 def spawn():
     return server.spawn()
+
+
+def shutdown():
+    if not _session:
+        return msg_not_connected
+
+    _session.send(channel.TQCommand('shutdown'))
+    return _session.recv()
 
 
 def connect(spawn=True):
@@ -36,7 +47,7 @@ def connect(spawn=True):
 
 def disconnect():
     if not _session:
-        return channel.TQServerCommandResult(401, 'Not connected')
+        return msg_not_connected
     _session.close()
 
 
@@ -44,11 +55,11 @@ def bye():
     disconnect()
 
 
-def echo(*args, **kwargs):
+def echo(**kwargs):
     if not _session:
-        return channel.TQServerCommandResult(401, 'Not connected')
+        return msg_not_connected
 
-    _session.send(channel.TQServerCommand('echo', *args, **kwargs))
+    _session.send(channel.TQCommand('echo', **kwargs))
     return _session.recv()
 
 
@@ -58,11 +69,3 @@ def enqueue(cmd, cwd=None, env=None):
 
     if not env:
         env = dict(os.environ)
-
-
-def shutdown():
-    if not _session:
-        return channel.TQServerCommandResult(401, 'Not connected')
-
-    _session.send(channel.TQServerCommand('despawn'))
-    return _session.recv()
