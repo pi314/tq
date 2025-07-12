@@ -34,13 +34,20 @@ def main():
 
             else:
                 while conn:
-                    i = input().strip()
+                    i = input('> ').strip()
                     if i == '':
                         print('bye')
                         tq.bye()
                         break
+
                     elif i in ('quit', 'stop', 'shutdown'):
                         res = tq.shutdown()
+
+                    elif i in ('ls', 'list'):
+                        for res in tq.list():
+                            print(res)
+                        continue
+
                     else:
                         res = tq.echo(msg=i)
 

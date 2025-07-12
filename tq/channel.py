@@ -38,7 +38,7 @@ class TQServerSocket:
     def close(self):
         try:
             self.ss.shutdown(socket.SHUT_RDWR)
-        except OSError:
+        except:
             pass
         self.ss.close()
         self.addr.file.unlink(missing_ok=True)
@@ -47,7 +47,7 @@ class TQServerSocket:
         try:
             conn, addr = self.ss.accept()
             return TQSession(self.pid, conn)
-        except ConnectionAbortedError:
+        except:
             pass
 
 
@@ -59,6 +59,8 @@ class TQSession(TQAddr):
         if not self.conn:
             self.conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             self.conn.connect(self.addr)
+
+        self.rw = self.conn.makefile('rw', encoding='utf8')
 
     def __enter__(self):
         return self
@@ -85,25 +87,37 @@ class TQSession(TQAddr):
 
     def close(self):
         if self.conn:
-            self.conn.close()
+            try:
+                self.conn.shutdown(socket.SHUT_RDWR)
+            except:
+                pass
+
+            try:
+                self.rw.close()
+            except:
+                pass
+
+            try:
+                self.conn.close()
+            except:
+                pass
             self.conn = None
 
     def send(self, msg):
-        self.conn.sendall(msg.serialize())
+        try:
+            self.rw.write(msg.serialize() + '\n')
+            self.rw.flush()
+        except:
+            pass
 
     def recv(self):
-        raw_data = b''
-        while True:
-            payload = self.conn.recv(1024)
-            raw_data += payload
-
-            try:
-                return TQMessage(json.loads(raw_data.decode('utf8')))
-            except ValueError:
-                if not payload:
-                    return TQMessage(raw_data)
-                else:
-                    continue
+        try:
+            payload = ''
+            payload = self.rw.readline()
+            return TQMessage(json.loads(payload))
+        except:
+            if not payload:
+                return TQMessage(payload)
 
 
 class TQNotSession:
@@ -136,7 +150,7 @@ class TQMessage:
 
     def serialize(self):
         import json
-        return json.dumps(self.data).encode('utf8')
+        return json.dumps(self.data)
 
 
 class TQCommand(TQMessage):

@@ -32,8 +32,8 @@ def write_pid_file():
 def del_pid_file():
     TQ_PID_FILE.unlink(missing_ok=True)
     try:
-        TQ_DIR.rmdir(missing_ok=True)
-    except PermissionError:
+        TQ_DIR.rmdir()
+    except:
         pass
 
 

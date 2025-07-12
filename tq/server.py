@@ -110,7 +110,9 @@ def frontdesk_thread(onready):
                     shutdown()
                 except BrokenPipeError as e:
                     logging.info('client BrokenPipeError')
-                except (Exception, KeyboardInterrupt, SystemExit) as e:
+                except KeyboardInterrupt:
+                    logging.info('KeyboardInterrupt')
+                except (Exception, SystemExit) as e:
                     logging.exception(e)
                 conn.close()
                 logging.info('client disconnected')
@@ -123,7 +125,6 @@ def frontdesk_thread(onready):
 
 def handle_client(conn):
     from .channel import TQResult
-    global next_task_id
 
     while not bye.is_set():
         msg = conn.recv()
@@ -139,8 +140,9 @@ def handle_client(conn):
 
 def handle_msg(conn, msg):
     from .channel import TQResult
+    global next_task_id
 
-    logging.info(f'handle_msg(): {msg}')
+    logging.info(f'handle_msg(): {msg.cmd}')
 
     if msg.cmd == 'shutdown':
         shutdown()
@@ -152,7 +154,19 @@ def handle_msg(conn, msg):
     elif msg.cmd == 'enqueue':
         from .task import Task
         worker_mailbox.put(Task(next_task_id, **msg.kwargs))
+        next_task_id += 1
+        del msg.kwargs['env']
         conn.send(TQResult(200, msg.kwargs))
+
+    elif msg.cmd == 'list':
+        for task in task_pending_queue:
+            logging.info(task)
+        for task in task_pending_queue:
+            conn.send(TQResult(100, {
+                'task_id': task.id,
+                'cmd': task.cmd,
+                }))
+        conn.send(TQResult(200))
 
     else:
         return False
@@ -168,6 +182,7 @@ def worker_thread():
                 continue
 
             logging.info(task)
+            task_pending_queue.append(task)
 
     except (Exception, KeyboardInterrupt, SystemExit) as e:
         logging.exception(e)

@@ -3,13 +3,13 @@ import json
 
 from . import daemon
 from . import server
-from . import channel
+from .channel import TQSession, TQNotSession, TQCommand, TQResult
 
 
-_session = None
+session = None
 
 
-msg_not_connected = channel.TQResult(401, {'msg': 'Not connected'})
+msg_not_connected = TQResult(401, {'msg': 'Not connected'})
 
 
 def detect():
@@ -21,15 +21,15 @@ def spawn():
 
 
 def shutdown():
-    if not _session:
+    if not session:
         return msg_not_connected
 
-    _session.send(channel.TQCommand('shutdown'))
-    return _session.recv()
+    session.send(TQCommand('shutdown'))
+    return session.recv()
 
 
 def connect(spawn=True):
-    global _session
+    global session
 
     server_pid = detect()
 
@@ -38,17 +38,17 @@ def connect(spawn=True):
         server_pid = detect()
 
     if server_pid:
-        _session = channel.TQSession(server_pid)
+        session = TQSession(server_pid)
     else:
-        _session = channel.TQNotSession()
+        session = TQNotSession()
 
-    return _session
+    return session
 
 
 def disconnect():
-    if not _session:
+    if not session:
         return msg_not_connected
-    _session.close()
+    session.close()
 
 
 def bye():
@@ -56,11 +56,11 @@ def bye():
 
 
 def echo(**kwargs):
-    if not _session:
+    if not session:
         return msg_not_connected
 
-    _session.send(channel.TQCommand('echo', kwargs))
-    return _session.recv()
+    session.send(TQCommand('echo', kwargs))
+    return session.recv()
 
 
 def enqueue(cmd, cwd=None, env=None):
@@ -70,9 +70,20 @@ def enqueue(cmd, cwd=None, env=None):
     if not env:
         env = dict(os.environ)
 
-    _session.send(channel.TQCommand('enqueue', {
+    session.send(TQCommand('enqueue', {
         'cmd': cmd,
         'cwd': cwd,
         'env': env,
         }))
-    return _session.recv()
+    return session.recv()
+
+
+def list():
+    session.send(TQCommand('list'))
+    while True:
+        msg = session.recv()
+        if msg:
+            yield msg
+
+        if not msg or msg.res >= 200:
+            break
