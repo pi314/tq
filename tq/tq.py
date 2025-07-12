@@ -87,3 +87,8 @@ def list():
 
         if not msg or msg.res >= 200:
             break
+
+
+def cancel(task_id):
+    session.send(TQCommand('cancel', {'task_id': int(task_id)}))
+    return session.recv()

@@ -160,13 +160,20 @@ def handle_msg(conn, msg):
 
     elif msg.cmd == 'list':
         for task in task_pending_queue:
-            logging.info(task)
-        for task in task_pending_queue:
             conn.send(TQResult(100, {
                 'task_id': task.id,
                 'cmd': task.cmd,
                 }))
         conn.send(TQResult(200))
+
+    elif msg.cmd == 'cancel':
+        for task in task_pending_queue:
+            if task.id == msg.kwargs['task_id']:
+                task_pending_queue.remove(task)
+                conn.send(TQResult(200, {'task_id': task.id}))
+                break
+        else:
+            conn.send(TQResult(404, {'task_id': msg.kwargs['task_id']}))
 
     else:
         return False

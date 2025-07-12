@@ -29,8 +29,21 @@ def main():
     try:
         with conn:
             if args.cmd:
-                res = tq.enqueue(args.cmd)
-                print(res)
+                if args.cmd[0] in ('quit', 'shutdown'):
+                    res = tq.shutdown()
+                    print(res)
+
+                elif args.cmd[0] == 'cancel':
+                    res = tq.cancel(args.cmd[1])
+                    print(res)
+
+                elif args.cmd[0] == 'list':
+                    for res in tq.list():
+                        print(res)
+
+                else:
+                    res = tq.enqueue(args.cmd)
+                    print(res)
 
             else:
                 while conn:
