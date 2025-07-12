@@ -14,6 +14,7 @@ def main():
 
     parser = argparse.ArgumentParser(prog=prog, description='tq')
     parser.add_argument('-v', '--version', action='version', version=f'tq {__version__}')
+    parser.add_argument('cmd', nargs='*')
 
     args = parser.parse_args()
 
@@ -27,22 +28,29 @@ def main():
     print(f'daemon pid = {conn.pid}')
     try:
         with conn:
-            while conn:
-                i = input().strip()
-                if i == '':
-                    print('bye')
-                    tq.bye()
-                    break
-                elif i in ('quit', 'stop', 'shutdown'):
-                    res = tq.shutdown()
-                else:
-                    res = tq.echo(msg=i)
-
-                if res.res is None:
-                    print(res)
-                    break
-
+            if args.cmd:
+                res = tq.enqueue(args.cmd)
                 print(res)
 
-    except Exception as e:
+            else:
+                while conn:
+                    i = input().strip()
+                    if i == '':
+                        print('bye')
+                        tq.bye()
+                        break
+                    elif i in ('quit', 'stop', 'shutdown'):
+                        res = tq.shutdown()
+                    else:
+                        res = tq.echo(msg=i)
+
+                    if res.res is None:
+                        print(res)
+                        break
+
+                    print(res)
+
+    except (KeyboardInterrupt, EOFError) as e:
+        pass
+    except (Exception, KeyboardInterrupt, SystemExit) as e:
         raise e

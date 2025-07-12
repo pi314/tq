@@ -140,7 +140,7 @@ class TQMessage:
 
 
 class TQCommand(TQMessage):
-    def __init__(self, cmd, **kwargs):
+    def __init__(self, cmd, kwargs={}):
         super().__init__({
             'cmd': cmd,
             'kwargs': kwargs,
@@ -148,7 +148,7 @@ class TQCommand(TQMessage):
 
 
 class TQResult(TQMessage):
-    def __init__(self, res, **kwargs):
+    def __init__(self, res, kwargs={}):
         super().__init__({
             'res': res,
             'kwargs': kwargs,

@@ -9,7 +9,7 @@ from . import channel
 _session = None
 
 
-msg_not_connected = channel.TQResult(401, msg='Not connected')
+msg_not_connected = channel.TQResult(401, {'msg': 'Not connected'})
 
 
 def detect():
@@ -59,7 +59,7 @@ def echo(**kwargs):
     if not _session:
         return msg_not_connected
 
-    _session.send(channel.TQCommand('echo', **kwargs))
+    _session.send(channel.TQCommand('echo', kwargs))
     return _session.recv()
 
 
@@ -69,3 +69,10 @@ def enqueue(cmd, cwd=None, env=None):
 
     if not env:
         env = dict(os.environ)
+
+    _session.send(channel.TQCommand('enqueue', {
+        'cmd': cmd,
+        'cwd': cwd,
+        'env': env,
+        }))
+    return _session.recv()
