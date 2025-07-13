@@ -15,12 +15,9 @@ from .config import TQ_DIR, TQ_LOG_FNAME
 ss = None
 bye = None
 
-worker_mailbox = None
 next_task_id = 1
 
-task_finished_queue = []
-task_ongoing = None
-task_pending_queue = []
+task_list = None
 
 
 def spawn():
@@ -40,7 +37,7 @@ def shutdown():
     bye.set()
     logging.info('shutdown()')
     ss.close()
-    worker_mailbox.put(None)
+    task_list.quit()
 
     # import signal
     # os.kill(os.getpid(), signal.SIGINT)
@@ -48,7 +45,7 @@ def shutdown():
 
 def boot(onready):
     global bye
-    global worker_mailbox
+    global task_list
 
     from logging.handlers import RotatingFileHandler
     one_mb = 1024 * 1024
@@ -60,10 +57,12 @@ def boot(onready):
             datefmt='%Y-%m-%d %H:%M:%S',
             format=f'[%(asctime)s.%(msecs)03d][{os.getpid()}] %(message)s')
 
-    logging.info('=' * 42)
+    logging.info('=' * 40)
 
     bye = threading.Event()
-    worker_mailbox = queue.Queue()
+
+    from .task import TaskList
+    task_list = TaskList()
 
     logging.info('start worker thread')
     t1 = threading.Thread(target=worker_thread, daemon=True)
@@ -85,6 +84,7 @@ def boot(onready):
         ss.close()
 
     logging.info('server quit')
+    logging.info('=' * 40)
     sys.exit(0)
 
 
@@ -153,27 +153,27 @@ def handle_msg(conn, msg):
 
     elif msg.cmd == 'enqueue':
         from .task import Task
-        worker_mailbox.put(Task(next_task_id, **msg.kwargs))
-        next_task_id += 1
-        del msg.kwargs['env']
-        conn.send(TQResult(200, msg.kwargs))
+        task_id = task_list.append(Task(**msg.kwargs))
+        conn.send(TQResult(200, {'task_id': task_id}))
 
     elif msg.cmd == 'list':
-        for task in task_pending_queue:
-            conn.send(TQResult(100, {
-                'task_id': task.id,
-                'cmd': task.cmd,
-                }))
+        with task_list:
+            for task in task_list.finished + [task_list.current] + task_list.pending:
+                if task:
+                    conn.send(TQResult(100, {
+                        'task_id': task.id,
+                        'cmd': task.cmd,
+                        'status': task.status,
+                        }))
         conn.send(TQResult(200))
 
     elif msg.cmd == 'cancel':
-        for task in task_pending_queue:
-            if task.id == msg.kwargs['task_id']:
-                task_pending_queue.remove(task)
+        with task_list:
+            task = task_list.remove(msg.kwargs['task_id'])
+            if task:
                 conn.send(TQResult(200, {'task_id': task.id}))
-                break
-        else:
-            conn.send(TQResult(404, {'task_id': msg.kwargs['task_id']}))
+            else:
+                conn.send(TQResult(404, {'task_id': msg.kwargs['task_id']}))
 
     else:
         return False
@@ -184,12 +184,15 @@ def worker_thread():
 
     try:
         while not bye.is_set():
-            task = worker_mailbox.get()
-            if not task:
-                continue
+            logging.info(f'task_list len={len(task_list)}')
+            task_list.wait()
+            if bye.is_set():
+                break
 
-            logging.info(task)
-            task_pending_queue.append(task)
+            logging.info(task_list.current)
+            if task_list.current:
+                task_list.current.run()
+                task_list.archive()
 
     except (Exception, KeyboardInterrupt, SystemExit) as e:
         logging.exception(e)

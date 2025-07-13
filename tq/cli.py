@@ -13,7 +13,8 @@ def main():
     argv = sys.argv[1:]
 
     parser = argparse.ArgumentParser(prog=prog, description='tq')
-    parser.add_argument('-v', '--version', action='version', version=f'tq {__version__}')
+    parser.add_argument('--version', action='version', version=f'tq {__version__}')
+    parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('cmd', nargs='*')
 
     args = parser.parse_args()
