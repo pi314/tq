@@ -1,3 +1,3 @@
-from . import tq
+from . import cli
 
-tq.main()
+cli.main()

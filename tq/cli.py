@@ -5,7 +5,7 @@ import os
 from os.path import basename
 
 from . import __version__
-from . import tq
+from . import tq_api
 
 
 def main():
@@ -21,7 +21,7 @@ def main():
 
     print(f'my pid = {os.getpid()}')
 
-    conn = tq.connect()
+    conn = tq_api.connect()
     if not conn:
         print('Connection failed')
         sys.exit(1)
@@ -31,19 +31,19 @@ def main():
         with conn:
             if args.cmd:
                 if args.cmd[0] in ('quit', 'shutdown'):
-                    res = tq.shutdown()
+                    res = tq_api.shutdown()
                     print(res)
 
                 elif args.cmd[0] == 'cancel':
-                    res = tq.cancel(args.cmd[1])
+                    res = tq_api.cancel(args.cmd[1])
                     print(res)
 
                 elif args.cmd[0] == 'list':
-                    for res in tq.list():
+                    for res in tq_api.list():
                         print(res)
 
                 else:
-                    res = tq.enqueue(args.cmd)
+                    res = tq_api.enqueue(args.cmd)
                     print(res)
 
             else:
@@ -51,19 +51,19 @@ def main():
                     i = input('> ').strip()
                     if i == '':
                         print('bye')
-                        tq.bye()
+                        tq_api.bye()
                         break
 
                     elif i in ('quit', 'stop', 'shutdown'):
-                        res = tq.shutdown()
+                        res = tq_api.shutdown()
 
                     elif i in ('ls', 'list'):
-                        for res in tq.list():
+                        for res in tq_api.list():
                             print(res)
                         continue
 
                     else:
-                        res = tq.echo(msg=i)
+                        res = tq_api.echo(msg=i)
 
                     if res.res is None:
                         print(res)
