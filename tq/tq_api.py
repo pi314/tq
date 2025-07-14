@@ -64,6 +64,9 @@ def echo(**kwargs):
 
 
 def enqueue(cmd, cwd=None, env=None):
+    if not session:
+        return msg_not_connected
+
     if not cwd:
         cwd = os.getcwd()
 
