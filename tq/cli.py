@@ -46,31 +46,6 @@ def main():
                     res = tq_api.enqueue(args.cmd)
                     print(res)
 
-            else:
-                while conn:
-                    i = input('> ').strip()
-                    if i == '':
-                        print('bye')
-                        tq_api.bye()
-                        break
-
-                    elif i in ('quit', 'stop', 'shutdown'):
-                        res = tq_api.shutdown()
-
-                    elif i in ('ls', 'list'):
-                        for res in tq_api.list():
-                            print(res)
-                        continue
-
-                    else:
-                        res = tq_api.echo(msg=i)
-
-                    if res.res is None:
-                        print(res)
-                        break
-
-                    print(res)
-
     except (KeyboardInterrupt, EOFError) as e:
         pass
     except (Exception, KeyboardInterrupt, SystemExit) as e:
