@@ -46,17 +46,17 @@ def main():
     prog = basename(sys.argv[0])
     argv = sys.argv[1:]
 
-    # Default argument
-    if not argv:
-        argv = ['list']
-
     # Parse options
-    if argv[0] in ('-v', '--verbose'):
+    if argv and argv[0] in ('-v', '--verbose'):
         _verbose = True
         argv.pop(0)
 
     # Parse sub-commands
-    if argv[0] in ('--version',):
+    if not argv:
+        tq_api.spawn()
+        handle_list([])
+
+    elif argv[0] in ('--version',):
         handle_version(argv[1:], brief=True)
 
     elif argv[0] in ('version',):
@@ -110,27 +110,27 @@ def handle_version(argv, brief=False):
 
 def handle_shutdown(argv):
     conn = connect()
-    with conn:
+    if conn:
         res = tq_api.shutdown()
         print(res)
 
 
 def handle_list(argv):
     conn = connect()
-    with conn:
+    if conn:
         for res in tq_api.list():
             print(res, res.args)
 
 
 def handle_kill(argv, soft=False):
     conn = connect()
-    with conn:
+    if conn:
         res = tq_api.cancel(args.cmd[1])
         print(res)
 
 
 def handle_shell(argv):
     conn = connect(spawn=True)
-    with conn:
+    if conn:
         res = tq_api.enqueue(argv)
         print(res)

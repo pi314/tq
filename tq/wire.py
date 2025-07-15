@@ -127,8 +127,7 @@ class TQSession(TQAddr):
                 return TQEvent(txid, tag, args)
             raise ValueError(tipe)
         except:
-            if not payload:
-                return TQMessage(None, None, None, payload)
+            return TQMessage(None, None, None, payload)
 
 
 class TQNotSession:
@@ -144,6 +143,9 @@ class TQNotSession:
     def __bool__(self):
         return False
 
+    def close(self):
+        pass
+
 
 class TQMessage:
     def __init__(self, txid, tipe, tag, args):
@@ -153,7 +155,7 @@ class TQMessage:
         super().__setattr__('args', args)
 
     def __bool__(self):
-        return bool(self.txid) or self.tipe != 'unknown' or bool(self.tag) or bool(self.args)
+        return bool(self.txid) or bool(self.tipe) or bool(self.tag) or bool(self.args)
 
     def __repr__(self):
         return f'TQMessage(txid={self.txid}, tipe={self.tipe}, tag={self.tag})'

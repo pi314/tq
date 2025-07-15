@@ -2,20 +2,110 @@ import os
 import json
 import threading
 import itertools
+import queue
 
 from . import daemon
 from . import server
-from .wire import TQSession, TQNotSession, TQCommand, TQResult, TQEvent
+from .wire import TQSession, TQNotSession, TQMessage, TQCommand, TQResult, TQEvent
 
 
 msg_not_connected = TQResult(None, 401, {'msg': 'Not connected'})
 
+def ignore_any_exceptions(func):
+    def wrapped(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except (Exception, KeyboardInterrupt, SystemExit) as e:
+            pass
+    return wrapped
 
-session = None
 
-_txid = itertools.count(1)
-def txid():
-    return next(_txid)
+class SessionManager:
+    def __init__(self):
+        self.connection = None
+        self.tx = {}
+        self.txid = itertools.count(1)
+        self.thread = None
+
+    @property
+    def pid(self):
+        if self.connection:
+            return self.connection.pid
+
+    def __bool__(self):
+        return bool(self.connection)
+
+    def bye(self, txid):
+        if txid in self.tx:
+            del self.tx[txid]
+
+    def bind(self, connection):
+        self.connection = connection
+        self.thread = threading.Thread(target=self.worker, daemon=True)
+        self.thread.start()
+
+    def close(self):
+        for tx in self.tx.values():
+            tx.put(TQMessage(None, None, None, b''))
+        self.connection.close()
+        self.connection = None
+
+    def worker(self):
+        try:
+            while True:
+                msg = self.connection.recv()
+                if not msg:
+                    break
+                if msg.txid in self.tx:
+                    self.tx[msg.txid].put(msg)
+        except (Exception, KeyboardInterrupt, SystemExit) as e:
+            pass
+        self.close()
+
+    def send(self, msg):
+        self.connection.send(msg)
+
+    def recv(self, txid):
+        return self.tx[txid].recv()
+
+    def get(self):
+        ret = Session(self, next(self.txid))
+        self.tx[ret.txid] = ret
+        return ret
+
+
+class Session:
+    def __init__(self, sm, txid):
+        self.sm = sm
+        self.txid = txid
+        self.queue = queue.Queue()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.sm.bye(self.txid)
+        self.queue = None
+
+    @ignore_any_exceptions
+    def send(self, cls, *args, **kwargs):
+        msg = cls(self.txid, *args, **kwargs)
+        self.sm.send(msg)
+
+    @ignore_any_exceptions
+    def recv(self):
+        return self.get()
+
+    @ignore_any_exceptions
+    def put(self, msg):
+        self.queue.put(msg)
+
+    @ignore_any_exceptions
+    def get(self):
+        return self.queue.get()
+
+
+sm = SessionManager()
 
 
 def detect():
@@ -27,15 +117,17 @@ def spawn():
 
 
 def shutdown():
-    if not session:
+    if not sm:
         return msg_not_connected
 
-    session.send(TQCommand(txid(), 'shutdown'))
-    return session.recv()
+    with sm.get() as session:
+        session.send(TQCommand, 'shutdown')
+        return session.recv()
 
 
 def connect(spawn=True):
-    global session
+    if sm:
+        sm.close()
 
     server_pid = detect()
 
@@ -44,17 +136,17 @@ def connect(spawn=True):
         server_pid = detect()
 
     if server_pid:
-        session = TQSession(server_pid)
+        sm.bind(TQSession(server_pid))
     else:
-        session = TQNotSession()
+        sm.bind(TQNotSession())
 
-    return session
+    return sm
 
 
 def disconnect():
-    if not session:
+    if not sm:
         return msg_not_connected
-    session.close()
+    sm.close()
 
 
 def bye():
@@ -62,15 +154,16 @@ def bye():
 
 
 def echo(**kwargs):
-    if not session:
+    if not sm:
         return msg_not_connected
 
-    session.send(TQCommand(txid(), 'echo', kwargs))
-    return session.recv()
+    with sm.get() as session:
+        txid = session.send(TQCommand, 'echo', kwargs)
+        return session.recv(txid)
 
 
 def enqueue(cmd, cwd=None, env=None):
-    if not session:
+    if not sm:
         return msg_not_connected
 
     if not cwd:
@@ -79,27 +172,30 @@ def enqueue(cmd, cwd=None, env=None):
     if not env:
         env = dict(os.environ)
 
-    session.send(TQCommand(txid(), 'enqueue', {
-        'cmd': cmd,
-        'cwd': cwd,
-        'env': env,
-        }))
-    return session.recv()
+    with sm.get() as session:
+        session.send(TQCommand, 'enqueue', {
+            'cmd': cmd,
+            'cwd': cwd,
+            'env': env,
+            })
+        return session.recv()
 
 
 def list():
-    session.send(TQCommand(txid(), 'list'))
-    while True:
-        msg = session.recv()
-        if msg:
-            yield msg
+    with sm.get() as session:
+        session.send(TQCommand, 'list')
+        while True:
+            msg = session.recv()
+            if msg:
+                yield msg
 
-        if not msg or msg.res >= 200:
-            break
+            if not msg or msg.res >= 200:
+                break
 
 
 def cancel(task_id):
-    session.send(TQCommand(txid(), 'cancel', {
-        'task_id': int(task_id)
-        }))
-    return session.recv()
+    with sm.get() as session:
+        session.send(TQCommand, 'cancel', {
+            'task_id': int(task_id)
+            })
+        return session.recv()
