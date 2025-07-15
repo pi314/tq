@@ -9,7 +9,7 @@ import logging
 from os.path import expanduser, exists
 
 from . import daemon
-from . import channel
+from . import wire
 from .config import TQ_DIR, TQ_LOG_FNAME
 
 ss = None
@@ -92,7 +92,7 @@ def frontdesk_thread(onready):
     logging.info('frontdesk thread start')
     global ss
 
-    ss = channel.TQServerSocket(os.getpid())
+    ss = wire.TQServerSocket(os.getpid())
 
     try:
         with ss:
@@ -124,7 +124,7 @@ def frontdesk_thread(onready):
 
 
 def handle_client(conn):
-    from .channel import TQResult
+    from .wire import TQResult
 
     while not bye.is_set():
         msg = conn.recv()
@@ -139,7 +139,7 @@ def handle_client(conn):
 
 
 def handle_msg(conn, msg):
-    from .channel import TQResult
+    from .wire import TQResult
     global next_task_id
 
     logging.info(f'handle_msg(): {msg.cmd}')

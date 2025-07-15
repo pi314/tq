@@ -3,7 +3,7 @@ import json
 
 from . import daemon
 from . import server
-from .channel import TQSession, TQNotSession, TQCommand, TQResult
+from .wire import TQSession, TQNotSession, TQCommand, TQResult
 
 
 session = None

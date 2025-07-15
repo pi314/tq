@@ -5,7 +5,7 @@ import logging
 import threading
 
 
-from . import channel
+from . import wire
 from . import server
 from .config import TQ_DIR, TQ_PID_FILE, TQ_LOG_FNAME
 
@@ -42,7 +42,7 @@ def detect():
     if pid is None:
         return None
 
-    if not channel.TQAddr(pid).file.exists():
+    if not wire.TQAddr(pid).file.exists():
         del_pid_file()
         return None
 
