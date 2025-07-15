@@ -119,7 +119,7 @@ def handle_list(argv):
     conn = connect()
     with conn:
         for res in tq_api.list():
-            print(res)
+            print(res, res.args)
 
 
 def handle_kill(argv, soft=False):

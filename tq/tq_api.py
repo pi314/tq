@@ -1,15 +1,21 @@
 import os
 import json
+import threading
+import itertools
 
 from . import daemon
 from . import server
-from .wire import TQSession, TQNotSession, TQCommand, TQResult
+from .wire import TQSession, TQNotSession, TQCommand, TQResult, TQEvent
+
+
+msg_not_connected = TQResult(None, 401, {'msg': 'Not connected'})
 
 
 session = None
 
-
-msg_not_connected = TQResult(401, {'msg': 'Not connected'})
+_txid = itertools.count(1)
+def txid():
+    return next(_txid)
 
 
 def detect():
@@ -24,7 +30,7 @@ def shutdown():
     if not session:
         return msg_not_connected
 
-    session.send(TQCommand('shutdown'))
+    session.send(TQCommand(txid(), 'shutdown'))
     return session.recv()
 
 
@@ -59,7 +65,7 @@ def echo(**kwargs):
     if not session:
         return msg_not_connected
 
-    session.send(TQCommand('echo', kwargs))
+    session.send(TQCommand(txid(), 'echo', kwargs))
     return session.recv()
 
 
@@ -73,7 +79,7 @@ def enqueue(cmd, cwd=None, env=None):
     if not env:
         env = dict(os.environ)
 
-    session.send(TQCommand('enqueue', {
+    session.send(TQCommand(txid(), 'enqueue', {
         'cmd': cmd,
         'cwd': cwd,
         'env': env,
@@ -82,7 +88,7 @@ def enqueue(cmd, cwd=None, env=None):
 
 
 def list():
-    session.send(TQCommand('list'))
+    session.send(TQCommand(txid(), 'list'))
     while True:
         msg = session.recv()
         if msg:
@@ -93,5 +99,7 @@ def list():
 
 
 def cancel(task_id):
-    session.send(TQCommand('cancel', {'task_id': int(task_id)}))
+    session.send(TQCommand(txid(), 'cancel', {
+        'task_id': int(task_id)
+        }))
     return session.recv()

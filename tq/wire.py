@@ -114,10 +114,21 @@ class TQSession(TQAddr):
         try:
             payload = ''
             payload = self.rw.readline()
-            return TQMessage(json.loads(payload))
+            packet = json.loads(payload)
+            txid = packet['txid']
+            tipe = packet['tipe']
+            tag = packet['tag']
+            args = packet['args']
+            if tipe == 'cmd':
+                return TQCommand(txid, tag, args)
+            elif tipe == 'res':
+                return TQResult(txid, tag, args)
+            elif tipe == 'evt':
+                return TQEvent(txid, tag, args)
+            raise ValueError(tipe)
         except:
             if not payload:
-                return TQMessage(payload)
+                return TQMessage(None, None, None, payload)
 
 
 class TQNotSession:
@@ -135,35 +146,63 @@ class TQNotSession:
 
 
 class TQMessage:
-    def __init__(self, data):
-        super().__setattr__('data', data)
+    def __init__(self, txid, tipe, tag, args):
+        super().__setattr__('txid', txid)
+        super().__setattr__('tipe', tipe)
+        super().__setattr__('tag', tag)
+        super().__setattr__('args', args)
 
     def __bool__(self):
-        return bool(self.data)
+        return bool(self.txid) or self.tipe != 'unknown' or bool(self.tag) or bool(self.args)
 
     def __repr__(self):
-        return f'TQMessage(data={self.data})'
+        return f'TQMessage(txid={self.txid}, tipe={self.tipe}, tag={self.tag})'
 
     def __getattr__(self, attr):
-        if isinstance(self.data, dict):
-            return self.data.get(attr)
+        if isinstance(self.args, dict):
+            return self.args.get(attr)
 
     def serialize(self):
         import json
-        return json.dumps(self.data)
+        return json.dumps({
+            'txid': self.txid,
+            'tipe': self.tipe,
+            'tag': self.tag,
+            'args': self.args,
+            })
 
 
 class TQCommand(TQMessage):
-    def __init__(self, cmd, kwargs={}):
-        super().__init__({
-            'cmd': cmd,
-            'kwargs': kwargs,
-            })
+    def __init__(self, txid, cmd, args={}):
+        super().__init__(txid, 'cmd', cmd, args)
+
+    @property
+    def cmd(self):
+        return self.tag
+
+    def __repr__(self):
+        return f'TQCommand(txid={self.txid}, cmd={self.cmd})'
 
 
 class TQResult(TQMessage):
-    def __init__(self, res, kwargs={}):
-        super().__init__({
-            'res': res,
-            'kwargs': kwargs,
-            })
+    def __init__(self, txid, res, args={}):
+        super().__init__(txid, 'res', res, args)
+
+    @property
+    def res(self):
+        return self.tag
+
+    def __repr__(self):
+        return f'TQResult(txid={self.txid}, res={self.tag})'
+
+
+class TQEvent(TQMessage):
+    def __init__(self, txid, event, args={}):
+        super().__init__(txid, 'evt', event, args)
+
+    @property
+    def event(self):
+        return self.tag
+
+    def __repr__(self):
+        return f'TQEvent(txid={self.txid}, event={self.tag})'

@@ -9,7 +9,7 @@ import logging
 from os.path import expanduser, exists
 
 from . import daemon
-from . import wire
+from .wire import TQServerSocket, TQCommand, TQResult, TQEvent
 from .config import TQ_DIR, TQ_LOG_FNAME
 
 ss = None
@@ -92,7 +92,7 @@ def frontdesk_thread(onready):
     logging.info('frontdesk thread start')
     global ss
 
-    ss = wire.TQServerSocket(os.getpid())
+    ss = TQServerSocket(os.getpid())
 
     try:
         with ss:
@@ -124,56 +124,54 @@ def frontdesk_thread(onready):
 
 
 def handle_client(conn):
-    from .wire import TQResult
-
     while not bye.is_set():
         msg = conn.recv()
+        logging.info(msg)
         if not msg:
             break
 
         result = handle_msg(conn, msg)
         if result is False:
             logging.info(f'server 400')
-            conn.send(TQResult(400))
+            conn.send(TQResult(msg.txid, 400))
             break
 
 
 def handle_msg(conn, msg):
-    from .wire import TQResult
     global next_task_id
 
-    logging.info(f'handle_msg(): {msg.cmd}')
+    logging.info(f'handle_msg(): txid={msg.txid} cmd={msg.cmd}')
 
     if msg.cmd == 'shutdown':
         shutdown()
 
     elif msg.cmd == 'echo':
-        logging.info(f'server echo {msg.kwargs}')
-        conn.send(TQResult(200, msg.kwargs))
+        logging.info(f'server echo {msg.args}')
+        conn.send(TQResult(msg.txid, 200, {'args': msg.args}))
 
     elif msg.cmd == 'enqueue':
         from .task import Task
-        task_id = task_list.append(Task(**msg.kwargs))
-        conn.send(TQResult(200, {'task_id': task_id}))
+        task_id = task_list.append(Task(**msg.args))
+        conn.send(TQResult(msg.txid, 200, {'task_id': task_id}))
 
     elif msg.cmd == 'list':
         with task_list:
             for task in task_list.finished + [task_list.current] + task_list.pending:
                 if task:
-                    conn.send(TQResult(100, {
+                    conn.send(TQResult(msg.txid, 100, {
                         'task_id': task.id,
                         'cmd': task.cmd,
                         'status': task.status,
                         }))
-        conn.send(TQResult(200))
+        conn.send(TQResult(msg.txid, 200))
 
     elif msg.cmd == 'cancel':
         with task_list:
-            task = task_list.remove(msg.kwargs['task_id'])
+            task = task_list.remove(msg.args['task_id'])
             if task:
-                conn.send(TQResult(200, {'task_id': task.id}))
+                conn.send(TQResult(msg.txid, 200, {'task_id': task.id}))
             else:
-                conn.send(TQResult(404, {'task_id': msg.kwargs['task_id']}))
+                conn.send(TQResult(msg.txid, 404, {'task_id': msg.args['task_id']}))
 
     else:
         return False
