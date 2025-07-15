@@ -126,7 +126,6 @@ def frontdesk_thread(onready):
 def handle_client(conn):
     while not bye.is_set():
         msg = conn.recv()
-        logging.info(msg)
         if not msg:
             break
 
@@ -158,11 +157,14 @@ def handle_msg(conn, msg):
         with task_list:
             for task in task_list.finished + [task_list.current] + task_list.pending:
                 if task:
-                    conn.send(TQResult(msg.txid, 100, {
-                        'task_id': task.id,
-                        'cmd': task.cmd,
-                        'status': task.status,
-                        }))
+                    info = {
+                            'task_id': task.id,
+                            'cmd': task.cmd,
+                            'status': task.status,
+                            }
+                    if task.status == 'error':
+                        info['error'] = task.error
+                    conn.send(TQResult(msg.txid, 100, info))
         conn.send(TQResult(msg.txid, 200))
 
     elif msg.cmd == 'cancel':

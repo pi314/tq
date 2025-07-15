@@ -100,6 +100,11 @@ class Task:
             return TQ_DIR / f'tq.task.{self.id}.returncode'
 
     @property
+    def error(self):
+        if self.exception:
+            return str(self.exception)
+
+    @property
     def status(self):
         if self.exception:
             return 'error'
