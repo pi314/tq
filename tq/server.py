@@ -98,6 +98,7 @@ def frontdesk_thread(onready):
 
     ss = TQServerSocket(os.getpid())
 
+    threads = []
     try:
         with ss:
             onready(os.getpid())
@@ -106,38 +107,43 @@ def frontdesk_thread(onready):
                 if not conn:
                     continue
 
-                logging.info('client connected')
-                try:
-                    handle_client(conn)
-                except ModuleNotFoundError as e:
-                    logging.exception(e)
-                    shutdown()
-                except BrokenPipeError as e:
-                    logging.info('client BrokenPipeError')
-                except KeyboardInterrupt:
-                    logging.info('KeyboardInterrupt')
-                except (Exception, SystemExit) as e:
-                    logging.exception(e)
-                conn.close()
-                logging.info('client disconnected')
+                t = threading.Thread(target=handle_client, args=(conn,), daemon=True)
+                t.start()
+                threads.append(t)
 
     except (Exception, KeyboardInterrupt, SystemExit) as e:
         logging.exception(e)
+
+    for t in threads:
+        t.join()
 
     logging.info('frontdesk thread bye')
 
 
 def handle_client(conn):
-    while not bye.is_set():
-        msg = conn.recv()
-        if not msg:
-            break
+    logging.info('client connected')
+    try:
+        while not bye.is_set():
+            msg = conn.recv()
+            if not msg:
+                break
 
-        result = handle_msg(conn, msg)
-        if result is False:
-            logging.info(f'server 400')
-            conn.send(TQResult(msg.txid, 400))
-            break
+            result = handle_msg(conn, msg)
+            if result is False:
+                logging.info(f'server 400')
+                conn.send(TQResult(msg.txid, 400))
+                break
+    except ModuleNotFoundError as e:
+        logging.exception(e)
+        shutdown()
+    except BrokenPipeError as e:
+        logging.info('client BrokenPipeError')
+    except KeyboardInterrupt:
+        logging.info('KeyboardInterrupt')
+    except (Exception, SystemExit) as e:
+        logging.exception(e)
+    conn.close()
+    logging.info('client disconnected')
 
 
 def handle_msg(conn, msg):
