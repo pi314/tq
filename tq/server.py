@@ -19,6 +19,9 @@ next_task_id = 1
 
 task_list = None
 
+client_lock = threading.Lock()
+client_list = []
+
 
 def detect():
     return daemon.detect()
@@ -82,7 +85,7 @@ def boot(onready):
     except (Exception, SystemExit) as e:
         logging.exception(e)
     except KeyboardInterrupt as e:
-        logging.info('KeyboardInterrupt')
+        logging.info('boot(): KeyboardInterrupt')
 
     if ss:
         ss.close()
@@ -93,12 +96,10 @@ def boot(onready):
 
 
 def frontdesk_thread(onready):
-    logging.info('frontdesk thread start')
     global ss
 
+    logging.info('frontdesk thread start')
     ss = TQServerSocket(os.getpid())
-
-    threads = []
     try:
         with ss:
             onready(os.getpid())
@@ -108,54 +109,77 @@ def frontdesk_thread(onready):
                     continue
 
                 t = threading.Thread(target=handle_client, args=(conn,), daemon=True)
+                with client_lock:
+                    client_list.append((t, conn))
                 t.start()
-                threads.append(t)
 
     except (Exception, KeyboardInterrupt, SystemExit) as e:
         logging.exception(e)
 
-    for t in threads:
-        t.join()
+    try:
+        logging.info(f'Kick {len(client_list)} clients')
+        for t, conn in client_list:
+            conn.close()
+            t.join()
+
+    except (Exception, KeyboardInterrupt, SystemExit) as e:
+        logging.exception(e)
 
     logging.info('frontdesk thread bye')
 
 
+class ClientLoggerAdapter(logging.LoggerAdapter):
+    def process(self, msg, kwargs):
+        ppid = self.extra['ppid']
+        return f'[ppid={ppid}] {msg}', kwargs
+
+
 def handle_client(conn):
-    logging.info(f'[pid={conn.ppid}] client connected')
+    logger = ClientLoggerAdapter(logging.getLogger(), {'ppid': conn.ppid})
+    logger.info(f'client connected, {len(client_list)} online')
     try:
         while not bye.is_set():
             msg = conn.recv()
             if not msg:
                 break
 
-            result = handle_msg(conn, msg)
+            result = handle_msg(logger, conn, msg)
             if result is False:
-                logging.info(f'server 400')
+                logger.info('server 400')
                 conn.send(TQResult(msg.txid, 400))
                 break
     except ModuleNotFoundError as e:
-        logging.exception(e)
+        logger.exception(e)
         shutdown()
     except BrokenPipeError as e:
-        logging.info('client BrokenPipeError')
+        logger.info('client BrokenPipeError')
     except KeyboardInterrupt:
-        logging.info('KeyboardInterrupt')
+        logger.info('KeyboardInterrupt')
     except (Exception, SystemExit) as e:
-        logging.exception(e)
+        logger.exception(e)
     conn.close()
-    logging.info(f'[pid={conn.ppid}] client disconnected')
+
+    try:
+        with client_lock:
+            for idx, (t, client_conn) in enumerate(client_list):
+                if client_conn is conn:
+                    client_list.pop(idx)
+                    break
+    except (Exception, SystemExit) as e:
+        logger.exception(e)
+    logger.info(f'client disconnected, {len(client_list)} online')
 
 
-def handle_msg(conn, msg):
+def handle_msg(logger, conn, msg):
     global next_task_id
 
-    logging.info(f'[pid={conn.ppid}] handle_msg(): txid={msg.txid} cmd={msg.cmd}')
+    logger.info(f'handle_msg(): txid={msg.txid} cmd={msg.cmd}')
 
     if msg.cmd == 'shutdown':
         shutdown()
 
     elif msg.cmd == 'echo':
-        logging.info(f'server echo {msg.args}')
+        logger.info(f'server echo {msg.args}')
         conn.send(TQResult(msg.txid, 200, {'args': msg.args}))
 
     elif msg.cmd == 'enqueue':
