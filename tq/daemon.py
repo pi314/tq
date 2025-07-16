@@ -72,6 +72,7 @@ def spawn():
             # exit first parent
             # readline() is necessary over read()
             try:
+                os.waitpid(pid, 0)
                 return int(os.fdopen(r).readline().strip())
             except ValueError:
                 return
