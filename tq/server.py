@@ -20,6 +20,10 @@ next_task_id = 1
 task_list = None
 
 
+def detect():
+    return daemon.detect()
+
+
 def spawn():
     daemon_pid = daemon.read_pid_file()
     if daemon_pid is not None and daemon_pid != os.getpid():

@@ -1,10 +1,10 @@
 import os
+import sys
 import json
 import threading
 import itertools
 import queue
 
-from . import daemon
 from . import server
 from .wire import TQSession, TQNotSession, TQMessage, TQCommand, TQResult, TQEvent
 
@@ -109,11 +109,24 @@ sm = SessionManager()
 
 
 def detect():
-    return daemon.detect()
+    return server.detect()
 
 
 def spawn():
-    return server.spawn()
+    import subprocess as sub
+    import inspect
+    from os.path import dirname, abspath
+    filename = inspect.getframeinfo(inspect.currentframe()).filename
+    module_path = dirname(dirname(abspath(filename)))
+    env = os.environ
+    env['PYTHONPATH'] = module_path
+    p = sub.run([sys.executable, '-m', 'tq', '--daemon'],
+                capture_output=True,
+                encoding='utf8', text=True, env=env)
+    try:
+        return int(p.stdout.strip(), 10)
+    except:
+        return None
 
 
 def shutdown():

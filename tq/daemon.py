@@ -80,6 +80,8 @@ def spawn():
         sys.stderr.write(f'fork #1 failed: {e.errno} (e.strerror)\n')
         sys.exit(1)
 
+    os.setsid()
+
     # do second fork
     try:
         pid = os.fork()
@@ -100,6 +102,8 @@ def spawn():
 
     import atexit
     atexit.register(onexit)
+
+    os.chdir('/')
 
     return lambda pid: onready(w, pid)
 

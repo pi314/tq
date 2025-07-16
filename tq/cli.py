@@ -68,10 +68,13 @@ def main():
     elif argv[0] in ('--help', 'help'):
         handle_help(argv[1:])
 
+    elif argv[0] in ('pid',):
+        handle_pid(argv[1:])
+
     elif argv[0] in ('quit', 'shutdown'):
         handle_shutdown(argv[1:])
 
-    elif argv[0] in ('list', 'ls'):
+    elif argv[0] in ('list'):
         handle_list(argv[1:])
 
     elif argv[0] in ('cancel',):
@@ -108,6 +111,13 @@ def handle_version(argv, brief=False):
     sys.exit()
 
 
+def handle_pid(argv):
+    tq_pid = tq_api.detect()
+    if not tq_pid:
+        sys.exit(1)
+    print(tq_pid)
+
+
 def handle_shutdown(argv):
     conn = connect()
     if conn:
@@ -130,6 +140,10 @@ def handle_kill(argv, soft=False):
 
 
 def handle_shell(argv):
+    if argv[0].startswith('-'):
+        print(f'Unknown command: "{argv[0]}"', file=sys.stderr)
+        sys.exit(1)
+
     conn = connect(spawn=True)
     if conn:
         res = tq_api.enqueue(argv)
