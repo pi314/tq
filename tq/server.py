@@ -121,7 +121,7 @@ def frontdesk_thread(onready):
 
 
 def handle_client(conn):
-    logging.info('client connected')
+    logging.info(f'[pid={conn.ppid}] client connected')
     try:
         while not bye.is_set():
             msg = conn.recv()
@@ -143,13 +143,13 @@ def handle_client(conn):
     except (Exception, SystemExit) as e:
         logging.exception(e)
     conn.close()
-    logging.info('client disconnected')
+    logging.info(f'[pid={conn.ppid}] client disconnected')
 
 
 def handle_msg(conn, msg):
     global next_task_id
 
-    logging.info(f'handle_msg(): txid={msg.txid} cmd={msg.cmd}')
+    logging.info(f'[pid={conn.ppid}] handle_msg(): txid={msg.txid} cmd={msg.cmd}')
 
     if msg.cmd == 'shutdown':
         shutdown()

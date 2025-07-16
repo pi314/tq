@@ -69,6 +69,10 @@ class TQSession(TQAddr):
         self.close()
 
     @property
+    def ppid(self):
+        return self.conn.getsockopt(0, 2)
+
+    @property
     def alive(self):
         if self.conn is None:
             return False
