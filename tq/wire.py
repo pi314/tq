@@ -1,5 +1,6 @@
 import socket
 import json
+import threading
 
 
 class TQAddr:
@@ -55,6 +56,7 @@ class TQSession(TQAddr):
     def __init__(self, pid, conn=None):
         super().__init__(pid)
         self.conn = conn
+        self.wlock = threading.Lock()
 
         if not self.conn:
             self.conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -108,11 +110,12 @@ class TQSession(TQAddr):
             self.conn = None
 
     def send(self, msg):
-        try:
-            self.rw.write(msg.serialize() + '\n')
-            self.rw.flush()
-        except:
-            pass
+        with self.wlock:
+            try:
+                self.rw.write(msg.serialize() + '\n')
+                self.rw.flush()
+            except:
+                pass
 
     def recv(self):
         try:
