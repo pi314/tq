@@ -17,41 +17,6 @@ class TQAddr:
         return str(self.file).encode('utf8')
 
 
-class TQServerSocket:
-    def __init__(self, pid):
-        self.pid = pid
-        self.addr = TQAddr(pid)
-        self.ss = None
-
-    def __enter__(self):
-        self.open()
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.close()
-
-    def open(self):
-        self.addr.file.unlink(missing_ok=True)
-        self.ss = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.ss.bind(self.addr.addr)
-        self.ss.listen()
-
-    def close(self):
-        try:
-            self.ss.shutdown(socket.SHUT_RDWR)
-        except:
-            pass
-        self.ss.close()
-        self.addr.file.unlink(missing_ok=True)
-
-    def accept(self):
-        try:
-            conn, addr = self.ss.accept()
-            return TQSession(self.pid, conn)
-        except:
-            pass
-
-
 class TQSession(TQAddr):
     def __init__(self, pid, conn=None):
         super().__init__(pid)

@@ -1,11 +1,49 @@
 import subprocess as sub
 import threading
+import socket
 
 from .config import TQ_DIR
+from .wire import TQAddr, TQSession
+
+
+class TQServerSocket:
+    def __init__(self, pid):
+        self.pid = pid
+        self.addr = TQAddr(pid)
+        self.ss = None
+
+    def __enter__(self):
+        self.open()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+
+    def open(self):
+        self.addr.file.unlink(missing_ok=True)
+        self.ss = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.ss.bind(self.addr.addr)
+        self.ss.listen()
+
+    def close(self):
+        try:
+            self.ss.shutdown(socket.SHUT_RDWR)
+        except:
+            pass
+        self.ss.close()
+        self.addr.file.unlink(missing_ok=True)
+
+    def accept(self):
+        try:
+            conn, addr = self.ss.accept()
+            return TQSession(self.pid, conn)
+        except:
+            pass
 
 
 class TaskList:
     def __init__(self):
+        self.bye = False
         self.finished = []
         self.current = None
         self.pending = []
@@ -32,6 +70,8 @@ class TaskList:
             if self.pending:
                 self.current = self.pending.pop(0)
 
+        return self.current is not None
+
     def quit(self):
         self.insert(None)
 
@@ -44,7 +84,7 @@ class TaskList:
             self.num_tasks.release()
             return task.id if task else None
 
-    def insert(self, task, end=False):
+    def insert(self, task):
         with self:
             if task:
                 task.setup(self.next_id)
@@ -137,3 +177,45 @@ class Task:
                         ret_file.write(f'{self.proc.wait()}\n')
         except (Exception, KeyboardInterrupt, SystemExit) as e:
             self.exception = e
+
+
+class ClientList:
+    def __init__(self):
+        self.clients = []
+        self.rlock = threading.RLock()
+
+    def __enter__(self):
+        self.rlock.acquire()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.rlock.release()
+
+    def __len__(self):
+        return len(self.clients)
+
+    def add(self, conn):
+        with self:
+            self.clients.append(conn)
+
+    def kick(self, conn=None):
+        with self:
+            if conn is not None:
+                self.bye(conn)
+
+            else:
+                for c in self.clients:
+                    c.close()
+                self.clients = []
+
+    def bye(self, conn):
+        try:
+            with self:
+                conn.close()
+                self.clients.remove(conn)
+        except:
+            pass
+
+
+class ServerEventHub:
+    def __init__(self):
+        self.subscribers = []

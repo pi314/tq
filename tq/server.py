@@ -9,18 +9,16 @@ import logging
 from os.path import expanduser, exists
 
 from . import daemon
-from .wire import TQServerSocket, TQCommand, TQResult, TQEvent
 from .config import TQ_DIR, TQ_LOG_FNAME
+from .wire import TQCommand, TQResult, TQEvent
+from .server_utils import TQServerSocket, ClientList, ServerEventHub
+from .server_utils import TaskList, Task
 
 ss = None
-bye = None
-
-next_task_id = 1
 
 task_list = None
-
-client_lock = threading.Lock()
-client_list = []
+client_list = None
+event_hub = None
 
 
 def detect():
@@ -41,18 +39,28 @@ def spawn():
 
 
 def shutdown():
-    bye.set()
+    globals()['shutdown'] = lambda:None
     logging.info('shutdown()')
-    ss.close()
-    task_list.quit()
+    try:
+        task_list.quit()
+    except:
+        pass
+    try:
+        client_list.kick()
+    except:
+        pass
+    try:
+        ss.close()
+    except:
+        pass
 
     # import signal
     # os.kill(os.getpid(), signal.SIGINT)
 
 
 def boot(onready):
-    global bye
     global task_list
+    global client_list
 
     from logging.handlers import RotatingFileHandler
     one_mb = 1024 * 1024
@@ -66,10 +74,9 @@ def boot(onready):
 
     logging.info('=' * 40)
 
-    bye = threading.Event()
-
-    from .task import TaskList
     task_list = TaskList()
+    client_list = ClientList()
+    event_hub = ServerEventHub()
 
     logging.info('start worker thread')
     t1 = threading.Thread(target=worker_thread, daemon=True)
@@ -103,29 +110,27 @@ def frontdesk_thread(onready):
     try:
         with ss:
             onready(os.getpid())
-            while not bye.is_set():
+            while True:
                 conn = ss.accept()
                 if not conn:
-                    continue
+                    break
 
                 t = threading.Thread(target=handle_client, args=(conn,), daemon=True)
-                with client_lock:
-                    client_list.append((t, conn))
+                client_list.add(conn)
                 t.start()
 
     except (Exception, KeyboardInterrupt, SystemExit) as e:
         logging.exception(e)
 
     try:
-        logging.info(f'Kick {len(client_list)} clients')
-        for t, conn in client_list:
-            conn.close()
-            t.join()
-
+        if client_list:
+            logging.info(f'Kick {len(client_list)} clients')
+            client_list.kick()
     except (Exception, KeyboardInterrupt, SystemExit) as e:
         logging.exception(e)
 
     logging.info('frontdesk thread bye')
+    shutdown()
 
 
 class ClientLoggerAdapter(logging.LoggerAdapter):
@@ -138,7 +143,7 @@ def handle_client(conn):
     logger = ClientLoggerAdapter(logging.getLogger(), {'ppid': conn.ppid})
     logger.info(f'client connected, {len(client_list)} online')
     try:
-        while not bye.is_set():
+        while True:
             msg = conn.recv()
             if not msg:
                 break
@@ -157,22 +162,16 @@ def handle_client(conn):
         logger.info('KeyboardInterrupt')
     except (Exception, SystemExit) as e:
         logger.exception(e)
-    conn.close()
 
     try:
-        with client_lock:
-            for idx, (t, client_conn) in enumerate(client_list):
-                if client_conn is conn:
-                    client_list.pop(idx)
-                    break
+        client_list.bye(conn)
+        logger.info(f'client disconnected, {len(client_list)} online')
     except (Exception, SystemExit) as e:
         logger.exception(e)
-    logger.info(f'client disconnected, {len(client_list)} online')
+        shutdown()
 
 
 def handle_msg(logger, conn, msg):
-    global next_task_id
-
     logger.info(f'handle_msg(): txid={msg.txid} cmd={msg.cmd}')
 
     if msg.cmd == 'shutdown':
@@ -183,7 +182,6 @@ def handle_msg(logger, conn, msg):
         conn.send(TQResult(msg.txid, 200, {'args': msg.args}))
 
     elif msg.cmd == 'enqueue':
-        from .task import Task
         task_id = task_list.append(Task(**msg.args))
         conn.send(TQResult(msg.txid, 200, {'task_id': task_id}))
 
@@ -217,18 +215,17 @@ def worker_thread():
     logging.info('worker thread start')
 
     try:
-        while not bye.is_set():
+        logging.info(f'task_list len={len(task_list)}')
+        while task_list.wait():
             logging.info(f'task_list len={len(task_list)}')
-            task_list.wait()
-            if bye.is_set():
-                break
-
-            logging.info(task_list.current)
+            logging.info(f'task={task_list.current}')
             if task_list.current:
                 task_list.current.run()
                 task_list.archive()
+            logging.info(f'task_list len={len(task_list)}')
 
     except (Exception, KeyboardInterrupt, SystemExit) as e:
         logging.exception(e)
 
     logging.info('worker thread bye')
+    shutdown()
