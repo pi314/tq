@@ -38,7 +38,18 @@ def handle_help(argv):
     print('Subcommands:')
     print('  help       Show this message and exit')
     print('  version    Show tq version and exit')
-    print('  list / ls  Show ')
+    print('  pid        Show the pid of tq server')
+    print('  shutdown   Shutdown tq server')
+    print('  quit       Alias to shutdown')
+    print('  list       Show task queue')
+    print('  block      Pending to consume queued tasks')
+    print('  unblock    Continue to consume queued tasks')
+    print('  step       Consume one queued task (if any) and continue to block')
+    print('  cat        (WIP)')
+    print('  head       (WIP)')
+    print('  tail       (WIP)')
+    print('  cancel     Cancel a task if it\'s not started yet')
+    print('  kill       Kill a task')
 
 
 def main():
@@ -74,8 +85,21 @@ def main():
     elif argv[0] in ('quit', 'shutdown'):
         handle_shutdown(argv[1:])
 
-    elif argv[0] in ('list'):
+    elif argv[0] in ('list',):
         handle_list(argv[1:])
+
+    elif argv[0] in ('block',):
+        handle_block(argv[1:])
+
+    elif argv[0] in ('unblock',):
+        handle_unblock(argv[1:])
+
+    elif argv[0] in ('step',):
+        handle_unblock(argv[1:], count=1)
+
+    elif argv[0] in ('cat', 'head', 'tail'):
+        print('WIP')
+        sys.exit(1)
 
     elif argv[0] in ('cancel',):
         handle_kill(argv[1:], soft=True)
@@ -120,23 +144,47 @@ def handle_pid(argv):
 
 def handle_shutdown(argv):
     conn = connect()
-    if conn:
-        res = tq_api.shutdown()
-        print(res)
+    if not conn:
+        sys.exit(1)
+
+    res = tq_api.shutdown()
+    print(res)
 
 
 def handle_list(argv):
     conn = connect()
-    if conn:
-        for res in tq_api.list():
-            print(res, res.args)
+    if not conn:
+        sys.exit(1)
+
+    for res in tq_api.list():
+        print(res, res.args)
+
+
+def handle_block(argv):
+    conn = connect()
+    if not conn:
+        sys.exit(1)
+
+    res = tq_api.block()
+    print(res)
+
+
+def handle_unblock(argv, count=None):
+    conn = connect()
+    if not conn:
+        sys.exit(1)
+
+    res = tq_api.unblock(count=count)
+    print(res)
 
 
 def handle_kill(argv, soft=False):
     conn = connect()
-    if conn:
-        res = tq_api.cancel(args.cmd[1])
-        print(res)
+    if not conn:
+        sys.exit(1)
+
+    res = tq_api.cancel(args.cmd[1])
+    print(res)
 
 
 def handle_shell(argv):
@@ -145,6 +193,8 @@ def handle_shell(argv):
         sys.exit(1)
 
     conn = connect(spawn=True)
-    if conn:
-        res = tq_api.enqueue(argv)
-        print(res)
+    if not conn:
+        sys.exit(1)
+
+    res = tq_api.enqueue(argv)
+    print(res)

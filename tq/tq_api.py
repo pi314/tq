@@ -171,8 +171,8 @@ def echo(**kwargs):
         return msg_not_connected
 
     with sm.get() as session:
-        txid = session.send(TQCommand, 'echo', kwargs)
-        return session.recv(txid)
+        session.send(TQCommand, 'echo', kwargs)
+        return session.recv()
 
 
 def enqueue(cmd, cwd=None, env=None):
@@ -204,6 +204,18 @@ def list():
 
             if not msg or msg.res >= 200:
                 break
+
+
+def block():
+    with sm.get() as session:
+        session.send(TQCommand, 'block')
+        return session.recv()
+
+
+def unblock(count=None):
+    with sm.get() as session:
+        session.send(TQCommand, 'unblock', {'count': count})
+        return session.recv()
 
 
 def cancel(task_id):

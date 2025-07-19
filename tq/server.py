@@ -185,9 +185,22 @@ def handle_msg(logger, conn, msg):
         task_id = task_list.append(Task(**msg.args))
         conn.send(TQResult(msg.txid, 200, {'task_id': task_id}))
 
+    elif msg.cmd == 'block':
+        task_list.block()
+        logger.info(f'task_list ttb={task_list.time_to_block}')
+        conn.send(TQResult(msg.txid, 200))
+
+    elif msg.cmd == 'unblock':
+        task_list.unblock(count=msg.count)
+        logger.info(f'task_list ttb={task_list.time_to_block}')
+        conn.send(TQResult(msg.txid, 200))
+
+    elif msg.cmd == 'wait':
+        conn.send(TQResult(msg.txid, 501))
+
     elif msg.cmd == 'list':
         with task_list:
-            for task in task_list.finished + [task_list.current] + task_list.pending:
+            for task in task_list.finished_list + [task_list.current] + task_list.pending_list:
                 if task:
                     info = {
                             'task_id': task.id,

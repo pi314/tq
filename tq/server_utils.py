@@ -44,13 +44,19 @@ class TQServerSocket:
 class TaskList:
     def __init__(self):
         self.bye = False
-        self.finished = []
+        self.finished_list = []
         self.current = None
-        self.pending = []
+        self.pending_list = []
 
         self.next_id = 1
         self.rlock = threading.RLock()
-        self.num_tasks = threading.Semaphore(0)
+        self.go = threading.Event()
+        self.pass_num = None
+
+    @property
+    def time_to_block(self):
+        with self:
+            return self.pass_num
 
     def __enter__(self):
         self.rlock.acquire()
@@ -59,16 +65,16 @@ class TaskList:
         self.rlock.release()
 
     def __bool__(self):
-        return bool(self.pending)
+        return bool(self.pending_list)
 
     def __len__(self):
-        return len(self.pending)
+        return len(self.pending_list)
 
     def wait(self):
-        self.num_tasks.acquire()
+        self.go.wait()
         with self:
-            if self.pending:
-                self.current = self.pending.pop(0)
+            if self.pending_list:
+                self.current = self.pending_list.pop(0)
 
         return self.current is not None
 
@@ -80,8 +86,8 @@ class TaskList:
             if task:
                 task.setup(self.next_id)
                 self.next_id += 1
-            self.pending.append(task)
-            self.num_tasks.release()
+            self.pending_list.append(task)
+            self.check_if_ok_to_go()
             return task.id if task else None
 
     def insert(self, task):
@@ -89,21 +95,43 @@ class TaskList:
             if task:
                 task.setup(self.next_id)
                 self.next_id += 1
-            self.pending.insert(0, task)
-            self.num_tasks.release()
+            self.pending_list.insert(0, task)
+            self.check_if_ok_to_go()
             return task.id if task else None
 
     def remove(self, task_id):
         with self:
-            for task in self.pending:
+            for task in self.pending_list:
                 if task.id == task_id:
-                    self.pending.remove(task)
+                    self.pending_list.remove(task)
                     return task
 
     def archive(self):
         with self:
-            self.finished.append(self.current)
+            self.finished_list.append(self.current)
             self.current = None
+            if self.pass_num is not None:
+                self.pass_num -= 1
+            self.check_if_ok_to_go()
+
+    def check_if_ok_to_go(self):
+        if self.pending_list and self.pass_num != 0:
+            self.go.set()
+        else:
+            self.go.clear()
+
+    def set_blocking(self):
+        self.check_if_ok_to_go()
+
+    def block(self):
+        with self:
+            self.pass_num = 0
+            self.check_if_ok_to_go()
+
+    def unblock(self, count=None):
+        with self:
+            self.pass_num = count
+            self.check_if_ok_to_go()
 
 
 class Task:
