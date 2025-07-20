@@ -3,7 +3,7 @@ import threading
 import socket
 
 from .config import TQ_DIR
-from .wire import TQAddr, TQSession
+from .wire import TQAddr, TQSession, TQEvent
 
 
 class TQServerSocket:
@@ -148,6 +148,21 @@ class Task:
         return f'Task(id={self.id}, cmd={self.cmd})'
 
     @property
+    def info(self):
+        ret = {
+                'task_id': self.id,
+                'cmd': self.cmd,
+                'cwd': self.cwd,
+                'stdout': str(self.stdout_file),
+                'stderr': str(self.stderr_file),
+                'returncode': self.proc.returncode if self.proc else None,
+                'status': self.status,
+                }
+        if self.error:
+            ret['error'] = self.error
+        return ret
+
+    @property
     def cmd_file(self):
         if self.id:
             return TQ_DIR / f'tq.task.{self.id}.cmd'
@@ -246,4 +261,30 @@ class ClientList:
 
 class ServerEventHub:
     def __init__(self):
-        self.subscribers = []
+        self.subscribers = {}
+        self.rlock = threading.RLock()
+
+    def __enter__(self):
+        self.rlock.acquire()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.rlock.release()
+
+    def add(self, conn, txid):
+        with self:
+            if conn.ppid in self.subscribers:
+                return False
+            self.subscribers[conn.ppid] = (conn, txid)
+            return True
+
+    def remove(self, conn):
+        with self:
+            if conn.ppid not in self.subscribers:
+                return False
+            del self.subscribers[conn.ppid]
+            return True
+
+    def broadcast(self, event, args={}):
+        with self:
+            for conn, txid in self.subscribers.values():
+                conn.send(TQEvent(txid, event, args))

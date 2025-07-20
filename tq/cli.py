@@ -2,6 +2,8 @@ import argparse
 import sys
 import os
 
+import subprocess as sub
+
 from os.path import basename
 
 from . import __version__
@@ -97,7 +99,10 @@ def main():
     elif argv[0] in ('step',):
         handle_unblock(argv[1:], count=1)
 
-    elif argv[0] in ('cat', 'head', 'tail'):
+    elif argv[0] in ('cat',):
+        handle_cat(argv[1:])
+
+    elif argv[0] in ('head', 'tail'):
         print('WIP')
         sys.exit(1)
 
@@ -176,6 +181,28 @@ def handle_unblock(argv, count=None):
 
     res = tq_api.unblock(count=count)
     print(res)
+
+
+def handle_cat(argv):
+    conn = connect()
+    if not conn:
+        sys.exit(1)
+
+    tail_proc = None
+
+    def handle_server_event(msg):
+        nonlocal tail_proc
+        from .tq_api import TQEvent
+        if not isinstance(msg, TQEvent):
+            return False
+
+        if msg.args['status'] == 'start':
+            if tail_proc:
+                tail_proc.kill()
+            tail_proc = sub.Popen(['tail', '-f', msg.args['stdout']])
+
+    t = tq_api.subscribe(handle_server_event)
+    t.join()
 
 
 def handle_kill(argv, soft=False):

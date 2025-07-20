@@ -218,6 +218,24 @@ def unblock(count=None):
         return session.recv()
 
 
+def subscribe(callback):
+    def handler():
+        with sm.get() as session:
+            session.send(TQCommand, 'subscribe')
+            msg = session.recv()
+            if not msg or msg.res < 200:
+                return
+
+            while True:
+                msg = session.recv()
+                if not msg or callback(msg) == False:
+                    break
+
+    t = threading.Thread(target=handler, daemon=True)
+    t.start()
+    return t
+
+
 def cancel(task_id):
     with sm.get() as session:
         session.send(TQCommand, 'cancel', {

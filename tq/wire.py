@@ -21,23 +21,20 @@ class TQSession(TQAddr):
     def __init__(self, pid, conn=None):
         super().__init__(pid)
         self.conn = conn
-        self.wlock = threading.Lock()
+        self.wlock = threading.RLock()
 
         if not self.conn:
             self.conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             self.conn.connect(self.addr)
 
         self.rw = self.conn.makefile('rw', encoding='utf8')
+        self.ppid = self.conn.getsockopt(0, 2)
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
-
-    @property
-    def ppid(self):
-        return self.conn.getsockopt(0, 2)
 
     @property
     def alive(self):

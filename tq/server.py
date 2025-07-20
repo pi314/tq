@@ -61,6 +61,7 @@ def shutdown():
 def boot(onready):
     global task_list
     global client_list
+    global event_hub
 
     from logging.handlers import RotatingFileHandler
     one_mb = 1024 * 1024
@@ -165,6 +166,7 @@ def handle_client(conn):
 
     try:
         client_list.bye(conn)
+        event_hub.remove(conn)
         logger.info(f'client disconnected, {len(client_list)} online')
     except (Exception, SystemExit) as e:
         logger.exception(e)
@@ -202,15 +204,14 @@ def handle_msg(logger, conn, msg):
         with task_list:
             for task in task_list.finished_list + [task_list.current] + task_list.pending_list:
                 if task:
-                    info = {
-                            'task_id': task.id,
-                            'cmd': task.cmd,
-                            'status': task.status,
-                            }
-                    if task.status == 'error':
-                        info['error'] = task.error
-                    conn.send(TQResult(msg.txid, 100, info))
+                    conn.send(TQResult(msg.txid, 100, task.info))
         conn.send(TQResult(msg.txid, 200))
+
+    elif msg.cmd == 'subscribe':
+        with task_list:
+            with event_hub:
+                res = event_hub.add(conn, msg.txid)
+                conn.send(TQResult(msg.txid, 200 if res else 409))
 
     elif msg.cmd == 'cancel':
         with task_list:
@@ -233,7 +234,11 @@ def worker_thread():
             logging.info(f'task_list len={len(task_list)}')
             logging.info(f'task={task_list.current}')
             if task_list.current:
+                task_info = task_list.current.info
+                task_info['status'] = 'start'
+                event_hub.broadcast('task', task_info)
                 task_list.current.run()
+                event_hub.broadcast('task', task_list.current.info)
                 task_list.archive()
             logging.info(f'task_list len={len(task_list)}')
 
