@@ -203,7 +203,7 @@ def list(task_id_list=[]):
             if msg:
                 yield msg
 
-            if not msg or msg.res == 200:
+            if not msg or msg.res == 200 or msg.res == 500:
                 break
 
 

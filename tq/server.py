@@ -224,7 +224,7 @@ def handle_msg(logger, conn, msg):
                                            task.info if task else {'task_id': task_id}))
             conn.send(TQResult(msg.txid, 200))
         except:
-            conn.send(TQResult(msg.txid, 400))
+            conn.send(TQResult(msg.txid, 500))
 
     elif msg.cmd == 'subscribe':
         with task_queue:
