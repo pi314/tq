@@ -41,12 +41,13 @@ class TQServerSocket:
             pass
 
 
-class TaskList:
+class TaskQueue:
     def __init__(self):
         self.bye = False
         self.finished_list = []
         self.current = None
         self.pending_list = []
+        self.index = {}
 
         self.next_id = 1
         self.rlock = threading.RLock()
@@ -63,6 +64,18 @@ class TaskList:
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.rlock.release()
+
+    def __iter__(self):
+        with self:
+            yield from self.finished_list
+            if self.current:
+                yield self.current
+            yield from self.pending_list
+
+    def __getitem__(self, index):
+        with self:
+            if index in self.index:
+                return self.index[index]
 
     def __bool__(self):
         return bool(self.pending_list)
@@ -87,6 +100,7 @@ class TaskList:
                 task.setup(self.next_id)
                 self.next_id += 1
             self.pending_list.append(task)
+            self.index[task.id] = task
             self.check_if_ok_to_go()
             return task.id if task else None
 
@@ -96,15 +110,16 @@ class TaskList:
                 task.setup(self.next_id)
                 self.next_id += 1
             self.pending_list.insert(0, task)
+            self.index[task.id] = task
             self.check_if_ok_to_go()
             return task.id if task else None
 
     def remove(self, task_id):
         with self:
-            for task in self.pending_list:
-                if task.id == task_id:
-                    self.pending_list.remove(task)
-                    return task
+            task = self.index.pop(task_id, None)
+            if task:
+                self.pending_list.remove(task)
+            return task
 
     def archive(self):
         with self:
@@ -119,9 +134,6 @@ class TaskList:
             self.go.set()
         else:
             self.go.clear()
-
-    def set_blocking(self):
-        self.check_if_ok_to_go()
 
     def block(self):
         with self:
@@ -216,8 +228,11 @@ class Task:
                     self.proc = sub.Popen(self.cmd, cwd=self.cwd,
                                           stdout=stdout_file, stderr=stderr_file,
                                           env=self.env)
+                    returncode = self.proc.wait()
+                    if returncode < 0:
+                        returncode = 128 - returncode
                     with open(self.ret_file, 'w') as ret_file:
-                        ret_file.write(f'{self.proc.wait()}\n')
+                        ret_file.write(f'{returncode}\n')
         except (Exception, KeyboardInterrupt, SystemExit) as e:
             self.exception = e
 

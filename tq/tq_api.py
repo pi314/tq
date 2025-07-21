@@ -194,15 +194,16 @@ def enqueue(cmd, cwd=None, env=None):
         return session.recv()
 
 
-def list():
+def list(task_id_list=[]):
     with sm.get() as session:
-        session.send(TQCommand, 'list')
+        args = {'task_id_list': task_id_list} if task_id_list else {}
+        session.send(TQCommand, 'list', args)
         while True:
             msg = session.recv()
             if msg:
                 yield msg
 
-            if not msg or msg.res >= 200:
+            if not msg or msg.res == 200:
                 break
 
 

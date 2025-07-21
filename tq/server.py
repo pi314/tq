@@ -1,7 +1,6 @@
 import os
 import sys
 
-import queue
 import threading
 
 import logging
@@ -12,11 +11,11 @@ from . import daemon
 from .config import TQ_DIR, TQ_LOG_FNAME
 from .wire import TQCommand, TQResult, TQEvent
 from .server_utils import TQServerSocket, ClientList, ServerEventHub
-from .server_utils import TaskList, Task
+from .server_utils import TaskQueue, Task
 
 ss = None
 
-task_list = None
+task_queue = None
 client_list = None
 event_hub = None
 
@@ -42,7 +41,7 @@ def shutdown():
     globals()['shutdown'] = lambda:None
     logging.info('shutdown()')
     try:
-        task_list.quit()
+        task_queue.quit()
     except:
         pass
     try:
@@ -59,7 +58,7 @@ def shutdown():
 
 
 def boot(onready):
-    global task_list
+    global task_queue
     global client_list
     global event_hub
 
@@ -75,7 +74,7 @@ def boot(onready):
 
     logging.info('=' * 40)
 
-    task_list = TaskList()
+    task_queue = TaskQueue()
     client_list = ClientList()
     event_hub = ServerEventHub()
 
@@ -184,38 +183,52 @@ def handle_msg(logger, conn, msg):
         conn.send(TQResult(msg.txid, 200, {'args': msg.args}))
 
     elif msg.cmd == 'enqueue':
-        task_id = task_list.append(Task(**msg.args))
+        task_id = task_queue.append(Task(**msg.args))
         conn.send(TQResult(msg.txid, 200, {'task_id': task_id}))
 
     elif msg.cmd == 'block':
-        task_list.block()
-        logger.info(f'task_list ttb={task_list.time_to_block}')
+        task_queue.block()
+        logger.info(f'task_queue ttb={task_queue.time_to_block}')
         conn.send(TQResult(msg.txid, 200))
 
     elif msg.cmd == 'unblock':
-        task_list.unblock(count=msg.count)
-        logger.info(f'task_list ttb={task_list.time_to_block}')
+        task_queue.unblock(count=msg.count)
+        logger.info(f'task_queue ttb={task_queue.time_to_block}')
         conn.send(TQResult(msg.txid, 200))
 
     elif msg.cmd == 'wait':
         conn.send(TQResult(msg.txid, 501))
 
     elif msg.cmd == 'list':
-        with task_list:
-            for task in task_list.finished_list + [task_list.current] + task_list.pending_list:
-                if task:
-                    conn.send(TQResult(msg.txid, 100, task.info))
-        conn.send(TQResult(msg.txid, 200))
+        query_list = msg.task_id_list
+        try:
+            with task_queue:
+                if not msg.task_id_list:
+                    # Query without task_id_list
+                    for task in task_queue:
+                        conn.send(TQResult(msg.txid, 100, task.info))
+                else:
+                    # Query with task_id_list
+                    for task_id in msg.task_id_list:
+                        task = task_queue[task_id]
+                        conn.send(TQResult(msg.txid,
+                                           100 if task else 404,
+                                           task.info if task else {'task_id': task_id}))
+            conn.send(TQResult(msg.txid, 200))
+        except:
+            conn.send(TQResult(msg.txid, 400))
 
     elif msg.cmd == 'subscribe':
-        with task_list:
+        with task_queue:
             with event_hub:
                 res = event_hub.add(conn, msg.txid)
                 conn.send(TQResult(msg.txid, 200 if res else 409))
+                if task_queue.current:
+                    conn.send(TQEvent(msg.txid, 'task', task_queue.current.info))
 
     elif msg.cmd == 'cancel':
-        with task_list:
-            task = task_list.remove(msg.args['task_id'])
+        with task_queue:
+            task = task_queue.remove(msg.args['task_id'])
             if task:
                 conn.send(TQResult(msg.txid, 200, {'task_id': task.id}))
             else:
@@ -229,18 +242,18 @@ def worker_thread():
     logging.info('worker thread start')
 
     try:
-        logging.info(f'task_list len={len(task_list)}')
-        while task_list.wait():
-            logging.info(f'task_list len={len(task_list)}')
-            logging.info(f'task={task_list.current}')
-            if task_list.current:
-                task_info = task_list.current.info
+        logging.info(f'task_queue len={len(task_queue)}')
+        while task_queue.wait():
+            logging.info(f'task_queue len={len(task_queue)}')
+            logging.info(f'task={task_queue.current}')
+            if task_queue.current:
+                task_info = task_queue.current.info
                 task_info['status'] = 'start'
                 event_hub.broadcast('task', task_info)
-                task_list.current.run()
-                event_hub.broadcast('task', task_list.current.info)
-                task_list.archive()
-            logging.info(f'task_list len={len(task_list)}')
+                task_queue.current.run()
+                event_hub.broadcast('task', task_queue.current.info)
+                task_queue.archive()
+            logging.info(f'task_queue len={len(task_queue)}')
 
     except (Exception, KeyboardInterrupt, SystemExit) as e:
         logging.exception(e)

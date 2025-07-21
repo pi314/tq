@@ -161,7 +161,9 @@ def handle_list(argv):
     if not conn:
         sys.exit(1)
 
-    for res in tq_api.list():
+    task_id_list = [int(arg) for arg in argv]
+
+    for res in tq_api.list(task_id_list):
         print(res, res.args)
 
 
