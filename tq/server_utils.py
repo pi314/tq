@@ -96,21 +96,18 @@ class TaskQueue:
 
     def append(self, task):
         with self:
-            if task:
-                task.setup(self.next_id)
-                self.next_id += 1
-                self.index[task.id] = task
-            self.pending_list.append(task)
-            self.check_if_ok_to_go()
-            return task.id if task else None
+            return self.insert(task, index=None)
 
-    def insert(self, task):
+    def insert(self, task, index=0):
         with self:
             if task:
                 task.setup(self.next_id)
                 self.next_id += 1
                 self.index[task.id] = task
-            self.pending_list.insert(0, task)
+            if index is None:
+                self.pending_list.append(task)
+            else:
+                self.pending_list.insert(index, task)
             self.check_if_ok_to_go()
             return task.id if task else None
 
