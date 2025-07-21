@@ -99,8 +99,8 @@ class TaskQueue:
             if task:
                 task.setup(self.next_id)
                 self.next_id += 1
+                self.index[task.id] = task
             self.pending_list.append(task)
-            self.index[task.id] = task
             self.check_if_ok_to_go()
             return task.id if task else None
 
@@ -109,8 +109,8 @@ class TaskQueue:
             if task:
                 task.setup(self.next_id)
                 self.next_id += 1
+                self.index[task.id] = task
             self.pending_list.insert(0, task)
-            self.index[task.id] = task
             self.check_if_ok_to_go()
             return task.id if task else None
 

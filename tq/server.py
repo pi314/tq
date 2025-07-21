@@ -41,17 +41,22 @@ def shutdown():
     globals()['shutdown'] = lambda:None
     logging.info('shutdown()')
     try:
+        logging.info('task_queue.quit()')
         task_queue.quit()
-    except:
-        pass
+    except (Exception, KeyboardInterrupt, SystemExit) as e:
+        logging.exception(e)
+
     try:
+        logging.info('client_list.kick()')
         client_list.kick()
-    except:
-        pass
+    except (Exception, KeyboardInterrupt, SystemExit) as e:
+        logging.exception(e)
+
     try:
+        logging.info('ss.close()')
         ss.close()
-    except:
-        pass
+    except (Exception, KeyboardInterrupt, SystemExit) as e:
+        logging.exception(e)
 
     # import signal
     # os.kill(os.getpid(), signal.SIGINT)
