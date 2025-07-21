@@ -158,6 +158,8 @@ def handle_client(conn):
                 logger.info('server 400')
                 conn.send(TQResult(msg.txid, 400))
                 break
+            elif result is True:
+                break
     except ModuleNotFoundError as e:
         logger.exception(e)
         shutdown()
@@ -182,6 +184,7 @@ def handle_msg(logger, conn, msg):
 
     if msg.cmd == 'shutdown':
         shutdown()
+        return True
 
     elif msg.cmd == 'echo':
         logger.info(f'server echo {msg.args}')
