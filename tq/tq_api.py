@@ -219,10 +219,10 @@ def unblock(count=None):
         return session.recv()
 
 
-def subscribe(callback):
+def subscribe(callback, finished=False):
     def handler():
         with sm.get() as session:
-            session.send(TQCommand, 'subscribe')
+            session.send(TQCommand, 'subscribe', args={'finished': finished})
             msg = session.recv()
             if not msg or msg.res < 200:
                 return

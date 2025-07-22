@@ -227,20 +227,27 @@ def handle_msg(logger, conn, msg):
             conn.send(TQResult(msg.txid, 500))
 
     elif msg.cmd == 'subscribe':
-        with task_queue:
-            with event_hub:
-                res = event_hub.add(conn, msg.txid)
-                conn.send(TQResult(msg.txid, 200 if res else 409))
-                if task_queue.current:
-                    conn.send(TQEvent(msg.txid, 'task', task_queue.current.info))
+        with task_queue, event_hub:
+            logging.info(msg.args)
+
+            res = event_hub.add(conn, msg.txid)
+            conn.send(TQResult(msg.txid, 200 if res else 409))
+
+            if msg.finished:
+                for task in task_queue:
+                    if task.status == 'finished':
+                        conn.send(TQEvent(msg.txid, 'task', task.info))
+
+            if task_queue.current:
+                conn.send(TQEvent(msg.txid, 'task', task_queue.current.info))
 
     elif msg.cmd == 'cancel':
         with task_queue:
-            task = task_queue.remove(msg.args['task_id'])
+            task = task_queue.remove(msg.task_id)
             if task:
                 conn.send(TQResult(msg.txid, 200, {'task_id': task.id}))
             else:
-                conn.send(TQResult(msg.txid, 404, {'task_id': msg.args['task_id']}))
+                conn.send(TQResult(msg.txid, 404, {'task_id': msg.task_id}))
 
     else:
         return False
