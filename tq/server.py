@@ -235,7 +235,7 @@ def handle_msg(logger, conn, msg):
 
             if msg.finished:
                 for task in task_queue:
-                    if task.status == 'finished':
+                    if task.status in ('finished', 'error'):
                         conn.send(TQEvent(msg.txid, 'task', task.info))
 
             if task_queue.current:

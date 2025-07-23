@@ -3,6 +3,8 @@ import sys
 import os
 
 import subprocess as sub
+import threading
+import queue
 
 from os.path import basename
 
@@ -47,6 +49,7 @@ def handle_help(argv):
     print('  block      Pending to consume queued tasks')
     print('  unblock    Continue to consume queued tasks')
     print('  step       Consume one queued task (if any) and continue to block')
+    print('  info       Print more detailed information about the tast')
     print('  cat        (WIP)')
     print('  head       (WIP)')
     print('  tail       (WIP)')
@@ -98,6 +101,9 @@ def main():
 
     elif argv[0] in ('step',):
         handle_unblock(argv[1:], count=1)
+
+    elif argv[0] in ('info',):
+        handle_info(argv[1:])
 
     elif argv[0] in ('cat',):
         handle_cat(argv[1:])
@@ -185,26 +191,96 @@ def handle_unblock(argv, count=None):
     print(res)
 
 
+def handle_info(argv):
+    conn = connect()
+    if not conn:
+        sys.exit(1)
+
+    for res in tq_api.list():
+        print(res, res.args)
+
+
 def handle_cat(argv):
     conn = connect()
     if not conn:
         sys.exit(1)
 
-    tail_proc = None
+    # Verify task_id list
+    task_id_list = [int(arg) for arg in argv]
+    forever = not task_id_list
 
-    def handle_server_event(msg):
-        nonlocal tail_proc
+    # Receive task events from server
+    desk_lock = threading.Lock()
+    desk = {}
+    update_num = threading.Semaphore(0)
+    bye = threading.Event()
+
+    def task_event_handler(msg):
         from .tq_api import TQEvent
         if not isinstance(msg, TQEvent):
+            bye.set()
+            update_num.release()
+            return False
+        if msg.event != 'task':
+            return
+
+        with desk_lock:
+            desk[msg.task_id] = (msg.stdout, msg.status)
+            if forever:
+                if msg.status in ('start', 'running'):
+                    task_id_list.append(msg.task_id)
+            update_num.release()
+
+    task_event_handler_thread = tq_api.subscribe(task_event_handler, finished=bool(task_id_list))
+
+    def cat(task_id):
+        if task_id not in desk:
             return False
 
-        if msg.args['status'] == 'start':
-            if tail_proc:
-                tail_proc.kill()
-            tail_proc = sub.Popen(['tail', '-f', msg.args['stdout']])
+        with open(desk[task_id][0], 'rb') as f:
+            while True:
+                data = f.read()
+                if not data:
+                    with desk_lock:
+                        if desk[task_id][1] in ('finished', 'error'):
+                            break
+                        else:
+                            import time
+                            time.sleep(0.2)
+                            continue
+                sys.stdout.buffer.write(data)
+                sys.stdout.flush()
 
-    t = tq_api.subscribe(handle_server_event)
-    t.join()
+    # Schedule next stdout file
+    skip_finished = forever
+    while True:
+        update_num.acquire()
+        with desk_lock:
+            if not task_id_list:
+                if forever:
+                    continue
+                else:
+                    break
+
+            task_id = task_id_list[0]
+            if task_id not in desk:
+                continue
+            if skip_finished and desk[task_id][1] in ('finished', 'error'):
+                task_id_list.pop(0)
+                continue
+            skip_finished = False
+
+        cat(task_id)
+        task_id_list.pop(0)
+
+        with desk_lock:
+            if not task_id_list:
+                if forever:
+                    continue
+                else:
+                    break
+
+    conn.close()
 
 
 def handle_kill(argv, soft=False):
