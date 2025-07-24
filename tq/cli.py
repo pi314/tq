@@ -173,8 +173,20 @@ def handle_list(argv):
 
     task_id_list = [int(arg) for arg in argv]
 
-    for res in tq_api.list(task_id_list):
-        print(res, res.args)
+    lines = []
+    lines.append(('task_id', 'status', 'cmd'))
+    for msg in tq_api.list(task_id_list):
+        if msg.res >= 200:
+            break
+        import shlex
+        lines.append((str(msg.task_id), msg.status, shlex.join(msg.cmd)))
+
+    width = [0 for col in lines[0]]
+    for line in lines:
+        width = [max(width[i], len(line[i])) for i in range(3)]
+
+    for line in lines:
+        print(line[0].rjust(width[0]) +'  '+ line[1].ljust(width[1]) +'  '+ line[2].ljust(width[2]))
 
 
 def handle_block(argv):
@@ -182,8 +194,8 @@ def handle_block(argv):
     if not conn:
         sys.exit(1)
 
-    res = tq_api.block()
-    print(res)
+    msg = tq_api.block()
+    print(msg)
 
 
 def handle_unblock(argv, count=None):
@@ -191,8 +203,8 @@ def handle_unblock(argv, count=None):
     if not conn:
         sys.exit(1)
 
-    res = tq_api.unblock(count=count)
-    print(res)
+    msg = tq_api.unblock(count=count)
+    print(msg)
 
 
 def handle_info(argv):
