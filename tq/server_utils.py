@@ -92,6 +92,7 @@ class TaskQueue:
         return self.current is not None
 
     def quit(self):
+        self.unblock()
         self.insert(None)
 
     def append(self, task):
