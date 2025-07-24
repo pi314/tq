@@ -200,8 +200,19 @@ def handle_info(argv):
     if not conn:
         sys.exit(1)
 
-    for res in tq_api.list():
-        print(res, res.args)
+    import shlex
+    for idx, msg in enumerate(tq_api.list([int(arg) for arg in argv])):
+        if msg.res >= 200:
+            break
+        if idx:
+            print()
+        print(f'Task_id   : {msg.task_id}')
+        print(f'Cwd       : {msg.cwd}')
+        print(f'Command   : {shlex.join(msg.cmd)}')
+        print(f'Returncode: {msg.returncode}')
+        print(f'Status    : {msg.status}')
+        print(f'stdout    : {msg.stdout}')
+        print(f'stderr    : {msg.stderr}')
 
 
 def handle_cat(argv):
