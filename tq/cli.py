@@ -50,11 +50,12 @@ def handle_help(argv):
     print('  unblock    Continue to consume queued tasks')
     print('  step       Consume one queued task (if any) and continue to block')
     print('  info       Print more detailed information about the task')
-    print('  cat        Print stdout file of specified tasks, block until the task finishes')
+    print('  cat        Print stdout file of specified tasks, block until the tasks finish')
     print('  head       (WIP)')
     print('  tail       (WIP)')
+    print('  wait       Wait for specified tasks to finish')
     print('  cancel     Cancel a task if it\'s not started yet')
-    print('  kill       Kill a task')
+    print('  kill       Kill specified tasks')
 
 
 def main():
@@ -107,6 +108,9 @@ def main():
 
     elif argv[0] in ('cat',):
         handle_cat(argv[1:])
+
+    elif argv[0] in ('wait',):
+        handle_wait(argv[1:])
 
     elif argv[0] in ('head', 'tail'):
         print('WIP')
@@ -286,6 +290,48 @@ def handle_cat(argv):
     monitor_thread.join()
 
 
+def handle_wait(argv):
+    conn = connect(spawn=True)
+    if not conn:
+        sys.exit(1)
+
+    if not argv:
+        print('Which tasks to wait?')
+        sys.exit(1)
+
+    # Verify task_id list
+    task_id_list = set(int(arg) for arg in argv)
+
+    # Receive task events from server
+    desk_lock = threading.Lock()
+    update_num = threading.Semaphore(0)
+
+    def task_event_handler(msg):
+        from .tq_api import TQEvent
+        if not isinstance(msg, TQEvent):
+            update_num.release()
+            return False
+        if msg.event != 'task':
+            return
+
+        with desk_lock:
+            if msg.status in ('finished', 'error'):
+                task_id_list.discard(msg.task_id)
+            update_num.release()
+
+    monitor_thread = tq_api.subscribe(task_event_handler, finished=True)
+
+    # Schedule next stdout file
+    while True:
+        update_num.acquire()
+        with desk_lock:
+            if not task_id_list:
+                break
+
+    conn.close()
+    monitor_thread.join()
+
+
 def handle_kill(argv, soft=False):
     conn = connect()
     if not conn:
@@ -305,4 +351,4 @@ def handle_shell(argv):
         sys.exit(1)
 
     res = tq_api.enqueue(argv)
-    print(res)
+    print(res, res.args)
