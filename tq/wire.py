@@ -21,12 +21,11 @@ class TQSession(TQAddr):
     def __init__(self, pid, conn=None):
         super().__init__(pid)
         self.conn = conn
-        self.wlock = threading.RLock()
-
         if not self.conn:
             self.conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             self.conn.connect(self.addr)
 
+        self.wlock = threading.RLock()
         self.rw = self.conn.makefile('rw', encoding='utf8')
         self.ppid = self.conn.getsockopt(0, 2)
 
@@ -43,33 +42,35 @@ class TQSession(TQAddr):
 
         try:
             self.conn.recv(16, socket.MSG_DONTWAIT | socket.MSG_PEEK)
+            return True
         except BlockingIOError:
             return True
-        except ConnectionResetError:
+        except:
+            self.close()
             return False
-
-        return True
 
     def __bool__(self):
         return self.alive
 
     def close(self):
-        if self.conn:
-            try:
-                self.conn.shutdown(socket.SHUT_RDWR)
-            except:
-                pass
+        try:
+            self.conn.shutdown(socket.SHUT_RDWR)
+        except:
+            pass
 
-            try:
-                self.rw.close()
-            except:
-                pass
+        try:
+            self.rw.close()
+        except:
+            pass
 
-            try:
-                self.conn.close()
-            except:
-                pass
-            self.conn = None
+        try:
+            self.conn.close()
+        except:
+            pass
+
+        self.conn = None
+        self.rw = None
+        self.wlock = None
 
     def send(self, msg):
         with self.wlock:
@@ -96,6 +97,8 @@ class TQSession(TQAddr):
                 return TQEvent(txid, tag, args)
             raise ValueError(tipe)
         except:
+            if not payload:
+                self.close()
             return TQMessage(None, None, None, payload)
 
 

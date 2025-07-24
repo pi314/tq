@@ -47,15 +47,14 @@ class SessionManager:
     def close(self):
         for tx in self.tx.values():
             tx.put(TQMessage(None, None, None, b''))
-        self.connection.close()
+        if self.connection:
+            self.connection.close()
         self.connection = None
 
     def worker(self):
         try:
-            while True:
+            while self.connection:
                 msg = self.connection.recv()
-                if not msg:
-                    break
                 if msg.txid in self.tx:
                     self.tx[msg.txid].put(msg)
         except (Exception, KeyboardInterrupt, SystemExit) as e:
@@ -85,7 +84,11 @@ class Session:
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.sm.bye(self.txid)
+        self.sm = None
         self.queue = None
+
+    def __bool__(self):
+        return bool(self.sm)
 
     @ignore_any_exceptions
     def send(self, cls, *args, **kwargs):
@@ -198,12 +201,12 @@ def list(task_id_list=[]):
     with sm.get() as session:
         args = {'task_id_list': task_id_list} if task_id_list else {}
         session.send(TQCommand, 'list', args)
-        while True:
+        while session:
             msg = session.recv()
             if msg:
                 yield msg
 
-            if not msg or msg.res == 200 or msg.res == 500:
+            if not msg or msg.res >= 200:
                 break
 
 
@@ -227,9 +230,9 @@ def subscribe(callback, finished=False):
             if not msg or msg.res < 200:
                 return
 
-            while True:
+            while session:
                 msg = session.recv()
-                if not msg or callback(msg) == False:
+                if callback(msg) == False or not msg:
                     break
 
     t = threading.Thread(target=handler, daemon=True)

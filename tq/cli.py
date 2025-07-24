@@ -49,8 +49,8 @@ def handle_help(argv):
     print('  block      Pending to consume queued tasks')
     print('  unblock    Continue to consume queued tasks')
     print('  step       Consume one queued task (if any) and continue to block')
-    print('  info       Print more detailed information about the tast')
-    print('  cat        (WIP)')
+    print('  info       Print more detailed information about the task')
+    print('  cat        Print stdout file of specified tasks, block until the task finishes')
     print('  head       (WIP)')
     print('  tail       (WIP)')
     print('  cancel     Cancel a task if it\'s not started yet')
@@ -201,7 +201,7 @@ def handle_info(argv):
 
 
 def handle_cat(argv):
-    conn = connect()
+    conn = connect(spawn=True)
     if not conn:
         sys.exit(1)
 
@@ -213,12 +213,11 @@ def handle_cat(argv):
     desk_lock = threading.Lock()
     desk = {}
     update_num = threading.Semaphore(0)
-    bye = threading.Event()
 
     def task_event_handler(msg):
         from .tq_api import TQEvent
         if not isinstance(msg, TQEvent):
-            bye.set()
+            task_id_list.append(None)
             update_num.release()
             return False
         if msg.event != 'task':
@@ -231,7 +230,7 @@ def handle_cat(argv):
                     task_id_list.append(msg.task_id)
             update_num.release()
 
-    task_event_handler_thread = tq_api.subscribe(task_event_handler, finished=bool(task_id_list))
+    monitor_thread = tq_api.subscribe(task_event_handler, finished=bool(task_id_list))
 
     def cat(task_id):
         if task_id not in desk:
@@ -240,16 +239,17 @@ def handle_cat(argv):
         with open(desk[task_id][0], 'rb') as f:
             while True:
                 data = f.read()
-                if not data:
-                    with desk_lock:
-                        if desk[task_id][1] in ('finished', 'error'):
-                            break
-                        else:
-                            import time
-                            time.sleep(0.2)
-                            continue
-                sys.stdout.buffer.write(data)
-                sys.stdout.flush()
+                if data:
+                    sys.stdout.buffer.write(data)
+                    sys.stdout.flush()
+                    continue
+
+                with desk_lock:
+                    if desk[task_id][1] in ('finished', 'error'):
+                        break
+
+                import time
+                time.sleep(0.1)
 
     # Schedule next stdout file
     skip_finished = forever
@@ -263,6 +263,8 @@ def handle_cat(argv):
                     break
 
             task_id = task_id_list[0]
+            if task_id is None:
+                break
             if task_id not in desk:
                 continue
             if skip_finished and desk[task_id][1] in ('finished', 'error'):
@@ -281,6 +283,7 @@ def handle_cat(argv):
                     break
 
     conn.close()
+    monitor_thread.join()
 
 
 def handle_kill(argv, soft=False):
