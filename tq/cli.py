@@ -174,12 +174,18 @@ def handle_list(argv):
     task_id_list = [int(arg) for arg in argv]
 
     lines = []
-    lines.append(('task_id', 'status', 'cmd'))
-    for msg in tq_api.list(task_id_list):
-        if msg.res >= 200:
-            break
+    lines.append(('id', 'status', 'cmd'))
+    msg = tq_api.list(task_id_list)
+    for info in msg.args:
         import shlex
-        lines.append((str(msg.task_id), msg.status, shlex.join(msg.cmd)))
+        try:
+            if info['status'] in ('running', 'pending'):
+                status = 'running'
+            else:
+                status = f'ret={info["returncode"]}'
+            lines.append((str(info['task_id']), status, shlex.join(info['cmd'])))
+        except:
+            lines.append((str(info['task_id']), '404', ''))
 
     width = [0 for col in lines[0]]
     for line in lines:
@@ -213,18 +219,27 @@ def handle_info(argv):
         sys.exit(1)
 
     import shlex
-    for idx, msg in enumerate(tq_api.list([int(arg) for arg in argv])):
-        if msg.res >= 200:
-            break
+    msg = tq_api.list([int(arg) for arg in argv])
+    for idx, info in enumerate(msg.args):
         if idx:
             print()
-        print(f'Task_id   : {msg.task_id}')
-        print(f'Cwd       : {msg.cwd}')
-        print(f'Command   : {shlex.join(msg.cmd)}')
-        print(f'Returncode: {msg.returncode}')
-        print(f'Status    : {msg.status}')
-        print(f'stdout    : {msg.stdout}')
-        print(f'stderr    : {msg.stderr}')
+
+        try:
+            lines = []
+            lines.append(f'task id : {info["task_id"]}')
+            lines.append(f'cwd     : {info["cwd"]}')
+            lines.append(f'command : {shlex.join(info["cmd"] or [])}')
+            lines.append(f'return  : {info["returncode"]}')
+            lines.append(f'status  : {info["status"]}')
+            lines.append(f'stdout  : {info["stdout"]}')
+            lines.append(f'stderr  : {info["stderr"]}')
+            if 'error' in info:
+                lines.append(f'error   : {info["error"]}')
+            for line in lines:
+                print(line)
+        except Exception as e:
+            print(f'task id : {info["task_id"]}')
+            print(f'error   : {repr(e)}')
 
 
 def handle_cat(argv):
@@ -322,7 +337,6 @@ def handle_wait(argv):
         print('Which tasks to wait?')
         sys.exit(1)
 
-    # Verify task_id list
     task_id_list = set(int(arg) for arg in argv)
 
     # Receive task events from server

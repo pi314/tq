@@ -210,19 +210,21 @@ def handle_msg(logger, conn, msg):
     elif msg.cmd == 'list':
         query_list = msg.task_id_list
         try:
+            ret = []
             with task_queue:
                 if not msg.task_id_list:
                     # Query without task_id_list
                     for task in task_queue:
-                        conn.send(TQResult(msg.txid, 100, task.info))
+                        ret.append(task.info)
                 else:
                     # Query with task_id_list
                     for task_id in msg.task_id_list:
                         task = task_queue[task_id]
-                        conn.send(TQResult(msg.txid,
-                                           100 if task else 404,
-                                           task.info if task else {'task_id': task_id}))
-            conn.send(TQResult(msg.txid, 200))
+                        if task:
+                            ret.append(task.info)
+                        else:
+                            ret.append({'task_id': task_id, 'error': 'unknown task id'})
+            conn.send(TQResult(msg.txid, 200, ret))
         except:
             conn.send(TQResult(msg.txid, 500))
 
