@@ -234,9 +234,8 @@ def subscribe(callback, finished=False):
     return t
 
 
-def cancel(task_id):
+def cancel(task_id_list):
     with sm.get() as session:
-        session.send(TQCommand, 'cancel', {
-            'task_id': int(task_id)
-            })
+        args = {'task_id_list': task_id_list} if task_id_list else {}
+        session.send(TQCommand, 'cancel', args)
         return session.recv()

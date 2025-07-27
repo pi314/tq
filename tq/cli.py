@@ -56,6 +56,7 @@ def handle_help(argv):
     print('  wait       Wait for specified tasks to finish')
     print('  cancel     Cancel a task if it\'s not started yet')
     print('  kill       Kill specified tasks')
+    print('  clear      Clear specified task information')
 
 
 def main():
@@ -116,11 +117,11 @@ def main():
         print('WIP')
         sys.exit(1)
 
-    elif argv[0] in ('cancel',):
-        handle_kill(argv[1:], soft=True)
+    elif argv[0] in ('cancel', 'kill'):
+        handle_kill(argv[1:], soft=(argv[0] == 'cancel'))
 
-    elif argv[0] in ('kill',):
-        handle_kill(argv[1:], soft=False)
+    elif argv[0] in ('clear',):
+        handle_clear(argv[1:])
 
     elif argv[0] in ('--', 'shell'):
         handle_shell(argv[1:])
@@ -180,7 +181,7 @@ def handle_list(argv):
         import shlex
         try:
             if info['status'] in ('running', 'pending'):
-                status = 'running'
+                status = info['status']
             else:
                 status = f'ret={info["returncode"]}'
             lines.append((str(info['task_id']), status, shlex.join(info['cmd'])))
@@ -374,7 +375,18 @@ def handle_kill(argv, soft=False):
     if not conn:
         sys.exit(1)
 
-    res = tq_api.cancel(args.cmd[1])
+    task_id_list = [int(arg) for arg in argv]
+    res = tq_api.cancel(task_id_list)
+    print(res, res.args)
+
+
+def handle_clear(argv):
+    conn = connect()
+    if not conn:
+        sys.exit(1)
+
+    task_id_list = set(int(arg) for arg in argv)
+    res = tq_api.clear(task_id_list)
     print(res)
 
 

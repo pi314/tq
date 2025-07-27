@@ -245,11 +245,19 @@ def handle_msg(logger, conn, msg):
 
     elif msg.cmd == 'cancel':
         with task_queue:
-            task = task_queue.remove(msg.task_id)
-            if task:
-                conn.send(TQResult(msg.txid, 200, {'task_id': task.id}))
-            else:
-                conn.send(TQResult(msg.txid, 404, {'task_id': msg.task_id}))
+            ret = []
+            logging.info('cancel', msg.task_id_list)
+            for task_id in msg.task_id_list:
+                if task_queue[task_id] is None:
+                    res = 404
+                elif task_queue[task_id].status != 'pending':
+                    res = 409
+                elif task_queue.remove(task_id):
+                    res = 200
+                else:
+                    res = 500
+                ret.append({'task_id': task_id, 'result': res})
+            conn.send(TQResult(msg.txid, 200, ret))
 
     else:
         return False

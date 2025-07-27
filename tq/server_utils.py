@@ -74,8 +74,7 @@ class TaskQueue:
 
     def __getitem__(self, index):
         with self:
-            if index in self.index:
-                return self.index[index]
+            return self.index.get(index)
 
     def __bool__(self):
         return bool(self.pending_list)
@@ -116,7 +115,10 @@ class TaskQueue:
         with self:
             task = self.index.pop(task_id, None)
             if task:
-                self.pending_list.remove(task)
+                try:
+                    self.pending_list.remove(task)
+                except:
+                    return None
             return task
 
     def archive(self):
