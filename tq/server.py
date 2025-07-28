@@ -180,14 +180,13 @@ def handle_client(conn):
 
 
 def handle_msg(logger, conn, msg):
-    logger.info(f'handle_msg(): txid={msg.txid} cmd={msg.cmd}')
+    logger.info(f'handle_msg(): txid={msg.txid}, cmd={msg.cmd}, args={msg.args if msg.cmd != "enqueue" else "..."}')
 
     if msg.cmd == 'shutdown':
         shutdown()
         return True
 
     elif msg.cmd == 'echo':
-        logger.info(f'server echo {msg.args}')
         conn.send(TQResult(msg.txid, 200, {'args': msg.args}))
 
     elif msg.cmd == 'enqueue':
@@ -230,8 +229,6 @@ def handle_msg(logger, conn, msg):
 
     elif msg.cmd == 'subscribe':
         with task_queue, event_hub:
-            logging.info(msg.args)
-
             res = event_hub.add(conn, msg.txid)
             conn.send(TQResult(msg.txid, 200 if res else 409))
 
@@ -246,13 +243,12 @@ def handle_msg(logger, conn, msg):
     elif msg.cmd == 'cancel':
         with task_queue:
             ret = []
-            logging.info('cancel', msg.task_id_list)
             for task_id in msg.task_id_list:
                 if task_queue[task_id] is None:
                     res = 404
                 elif task_queue[task_id].status != 'pending':
                     res = 409
-                elif task_queue.remove(task_id):
+                elif task_queue.cancel(task_id):
                     res = 200
                 else:
                     res = 500

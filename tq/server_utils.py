@@ -111,15 +111,17 @@ class TaskQueue:
             self.check_if_ok_to_go()
             return task.id if task else None
 
-    def remove(self, task_id):
+    def cancel(self, task_id):
         with self:
-            task = self.index.pop(task_id, None)
+            task = self.index.get(task_id, None)
             if task:
                 try:
                     self.pending_list.remove(task)
+                    task.canceled = True
+                    self.finished_list.append(task)
                 except:
-                    return None
-            return task
+                    return False
+            return True
 
     def archive(self):
         with self:
@@ -152,6 +154,7 @@ class Task:
         self.cmd = cmd
         self.cwd = cwd
         self.env = env
+        self.canceled = False
 
         self.proc = None
         self.exception = None
@@ -203,6 +206,8 @@ class Task:
     def status(self):
         if self.exception:
             return 'error'
+        if self.canceled:
+            return 'canceled'
         if not self.proc:
             return 'pending'
         if self.proc.returncode is None:

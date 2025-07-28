@@ -189,10 +189,10 @@ def handle_list(argv):
     for info in msg.args:
         import shlex
         try:
-            if info['status'] in ('running', 'pending'):
+            if info['status'] in ('running', 'pending', 'canceled'):
                 status = info['status']
             else:
-                status = f'ret={info["returncode"]}'
+                status = f'{info["returncode"]}'
             lines.append((str(info['task_id']), status, shlex.join(info['cmd'])))
         except:
             lines.append((str(info['task_id']), '404', ''))
