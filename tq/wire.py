@@ -119,31 +119,84 @@ class TQNotSession:
         pass
 
 
+class TQJsonEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, AttrProxy):
+            return o.ref
+        return super().default(o)
+
+
+class AttrProxy:
+    def __init__(self, ref=None):
+        super().__setattr__('ref', {} if ref is None else ref)
+
+    def __repr__(self):
+        return f'{type(self).__name__}({repr(self.ref)})'
+
+    def __bool__(self):
+        return bool(self.ref)
+
+    def __len__(self):
+        return len(self.ref)
+
+    def __iter__(self):
+        for item in self.ref:
+            if isinstance(item, (dict, list, tuple)):
+                yield type(self)(item)
+            else:
+                yield item
+
+    def __getattr__(self, attr):
+        if hasattr(self.ref, attr):
+            return getattr(self.ref, attr)
+        return self[attr]
+
+    def __setattr__(self, attr, value):
+        self[attr] = value
+
+    def __getitem__(self, index):
+        if isinstance(self.ref, dict):
+            ret = self.ref.get(index)
+        else:
+            try:
+                ret = self.ref[index]
+            except IndexError:
+                return None
+        if isinstance(ret, (dict, list, tuple)):
+            return type(self)(ret)
+        return ret
+
+    def __setitem__(self, index, value):
+        if isinstance(self.ref, list) and index == len(self):
+            self.append(value)
+        else:
+            self.ref[index] = value
+
+
 class TQMessage:
     def __init__(self, txid, tipe, tag, args):
         super().__setattr__('txid', txid)
         super().__setattr__('tipe', tipe)
         super().__setattr__('tag', tag)
-        super().__setattr__('args', args)
+        super().__setattr__('args', AttrProxy(args))
 
     def __bool__(self):
         return bool(self.txid) or bool(self.tipe) or bool(self.tag) or bool(self.args)
 
     def __repr__(self):
-        return f'TQMessage(txid={self.txid}, tipe={self.tipe}, tag={self.tag})'
+        return f'TQMessage(txid={self.txid}, tipe={self.tipe}, tag={self.tag}, args={self.args})'
 
     def __getattr__(self, attr):
         if isinstance(self.args, dict):
             return self.args.get(attr)
 
     def serialize(self):
-        import json
         return json.dumps({
             'txid': self.txid,
             'tipe': self.tipe,
             'tag': self.tag,
             'args': self.args,
-            })
+            }, cls=TQJsonEncoder)
 
 
 class TQCommand(TQMessage):

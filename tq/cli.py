@@ -189,13 +189,13 @@ def handle_list(argv):
     for info in msg.args:
         import shlex
         try:
-            if info['status'] in ('running', 'pending', 'canceled'):
-                status = info['status']
+            if info.status in ('running', 'pending', 'canceled', 'error'):
+                status = info.status
             else:
-                status = f'{info["returncode"]}'
-            lines.append((str(info['task_id']), status, shlex.join(info['cmd'])))
+                status = f'{info.returncode}'
+            lines.append((str(info.task_id), status, shlex.join(info.cmd)))
         except:
-            lines.append((str(info['task_id']), '404', ''))
+            lines.append((str(info.task_id), '404', ''))
 
     width = [0 for col in lines[0]]
     for line in lines:
@@ -276,10 +276,10 @@ def handle_cat(argv):
             return
 
         with desk_lock:
-            desk[msg.task_id] = (msg.stdout, msg.status)
+            desk[msg.args.task_id] = (msg.args.stdout, msg.args.status)
             if forever:
-                if msg.status in ('start', 'running'):
-                    task_id_list.append(msg.task_id)
+                if msg.args.status in ('start', 'running'):
+                    task_id_list.append(msg.args.task_id)
             update_num.release()
 
     monitor_thread = tq_api.subscribe(task_event_handler, finished=bool(task_id_list))
@@ -362,8 +362,8 @@ def handle_wait(argv):
             return
 
         with desk_lock:
-            if msg.status in ('finished', 'error'):
-                task_id_list.discard(msg.task_id)
+            if msg.args.status in ('finished', 'error'):
+                task_id_list.discard(msg.args.task_id)
             update_num.release()
 
     monitor_thread = tq_api.subscribe(task_event_handler, finished=True)
