@@ -395,8 +395,9 @@ def handle_clear(argv):
         sys.exit(1)
 
     task_id_list = set(int(arg) for arg in argv)
-    res = tq_api.clear(task_id_list)
-    print(res)
+    msg = tq_api.clear(task_id_list)
+    for info in msg.args:
+        print(f'{info.task_id}: {info.result}')
 
 
 def handle_shell(argv):

@@ -239,3 +239,10 @@ def cancel(task_id_list):
         args = {'task_id_list': task_id_list} if task_id_list else {}
         session.send(TQCommand, 'cancel', args)
         return session.recv()
+
+
+def clear(task_id_list):
+    with sm.get() as session:
+        args = {'task_id_list': task_id_list} if task_id_list else {}
+        session.send(TQCommand, 'clear', args)
+        return session.recv()

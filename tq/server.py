@@ -255,6 +255,26 @@ def handle_msg(logger, conn, msg):
                 ret.append({'task_id': task_id, 'result': res})
             conn.send(TQResult(msg.txid, 200, ret))
 
+    elif msg.cmd == 'clear':
+        try:
+            with task_queue:
+                if msg.args.task_id_list:
+                    clear_list = msg.args.task_id_list
+                else:
+                    clear_list = [task.id for task in task_queue
+                                  if task.status not in ('pending', 'running')]
+
+                ret = []
+                for task_id in clear_list:
+                    if task_queue.clear(task_id):
+                        res = 200
+                    else:
+                        res = 409
+                    ret.append({'task_id': task_id, 'result': res})
+                conn.send(TQResult(msg.txid, 200, ret))
+        except:
+            conn.send(TQResult(msg.txid, 500))
+
     else:
         return False
 

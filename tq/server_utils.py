@@ -123,6 +123,18 @@ class TaskQueue:
                     return False
             return True
 
+    def clear(self, task_id):
+        try:
+            with self:
+                task = self.index.get(task_id, None)
+                if not task or task.status in ('pending', 'running'):
+                    return False
+                self.finished_list.remove(task)
+                task.teardown()
+                return True
+        except:
+            return False
+
     def archive(self):
         with self:
             self.finished_list.append(self.current)
@@ -240,6 +252,13 @@ class Task:
                         ret_file.write(f'{returncode}\n')
         except (Exception, KeyboardInterrupt, SystemExit) as e:
             self.exception = e
+
+    def teardown(self):
+        for f in [self.cmd_file, self.stdout_file, self.stderr_file, self.ret_file]:
+            try:
+                f.unlink(missing_ok=True)
+            except:
+                pass
 
 
 class ClientList:
