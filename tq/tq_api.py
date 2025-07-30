@@ -216,6 +216,12 @@ def unblock(count=None):
         return session.recv()
 
 
+def urgent(task_id):
+    with sm.get() as session:
+        session.send(TQCommand, 'urgent', {'task_id': task_id})
+        return session.recv()
+
+
 def subscribe(callback, finished=False):
     def handler():
         with sm.get() as session:

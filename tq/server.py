@@ -275,6 +275,22 @@ def handle_msg(logger, conn, msg):
         except:
             conn.send(TQResult(msg.txid, 500))
 
+    elif msg.cmd == 'urgent':
+        try:
+            with task_queue:
+                if not msg.args.task_id:
+                    conn.send(TQResult(msg.txid, 400))
+                    return
+
+                if task_queue.urgent(msg.args.task_id):
+                    res = 200
+                else:
+                    res = 409
+                ret.append({'task_id': task_id, 'result': res})
+                conn.send(TQResult(msg.txid, 200, ret))
+        except:
+            conn.send(TQResult(msg.txid, 500))
+
     else:
         return False
 

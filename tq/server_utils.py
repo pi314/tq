@@ -159,6 +159,16 @@ class TaskQueue:
             self.pass_num = count
             self.check_if_ok_to_go()
 
+    def urgent(self, task_id):
+        with self:
+            task = self.index.get(task_id, None)
+            if not task or task.status != 'pending':
+                return False
+
+            self.pending_list.remove(task)
+            self.pending_list.insert(0, task)
+            return True
+
 
 class Task:
     def __init__(self, cmd, cwd=None, env=None):
