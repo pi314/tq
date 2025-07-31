@@ -291,6 +291,23 @@ def handle_msg(logger, conn, msg):
         except:
             conn.send(TQResult(msg.txid, 500))
 
+    elif msg.cmd in ('up', 'down'):
+        logger.info(msg.cmd, 'entry')
+        # try:
+        with task_queue:
+            if not msg.args.task_id:
+                conn.send(TQResult(msg.txid, 400))
+                return
+
+            if task_queue.move(msg.args.task_id, (-1 if msg.cmd == 'up' else 1)):
+                res = 200
+            else:
+                res = 409
+            ret.append({'task_id': task_id, 'result': res})
+            conn.send(TQResult(msg.txid, 200, ret))
+        # except:
+        #     conn.send(TQResult(msg.txid, 500))
+
     else:
         return False
 

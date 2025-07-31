@@ -169,6 +169,21 @@ class TaskQueue:
             self.pending_list.insert(0, task)
             return True
 
+    def move(self, task_id, drift):
+        with self:
+            task = self.index.get(task_id, None)
+            if not task or task.status != 'pending':
+                return False
+
+            idx = self.pending_list.index(task)
+            new_idx = min(max((idx + drift), 0), (len(self.pending_list) - 1))
+            if new_idx != idx:
+                l = self.pending_list
+                l[idx], l[new_idx] = l[new_idx], l[idx]
+                return True
+            else:
+                return False
+
 
 class Task:
     def __init__(self, cmd, cwd=None, env=None):

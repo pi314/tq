@@ -222,6 +222,18 @@ def urgent(task_id):
         return session.recv()
 
 
+def up(task_id):
+    with sm.get() as session:
+        session.send(TQCommand, 'up', {'task_id': task_id})
+        return session.recv()
+
+
+def down(task_id):
+    with sm.get() as session:
+        session.send(TQCommand, 'down', {'task_id': task_id})
+        return session.recv()
+
+
 def subscribe(callback, finished=False):
     def handler():
         with sm.get() as session:

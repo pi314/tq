@@ -60,6 +60,8 @@ def handle_help(argv):
     print('    unblock    Continue to consume queued tasks')
     print('    step       Consume one queued task (if any) and continue to block')
     print('    urgent     Make specified task urgent, moved to the beginning of pending queue')
+    print('    up         Move specified task up')
+    print('    down       Move specified task down')
     print()
     print('  Interacting')
     print('    cancel     Cancel tasks if they\'re not started yet')
@@ -115,6 +117,12 @@ def main():
 
     elif argv[0] in ('urgent',):
         handle_urgent(argv[1:])
+
+    elif argv[0] in ('up',):
+        handle_up(argv[1:])
+
+    elif argv[0] in ('down',):
+        handle_down(argv[1:])
 
     elif argv[0] in ('info',):
         handle_info(argv[1:])
@@ -235,6 +243,30 @@ def handle_urgent(argv):
         sys.exit(1)
 
     msg = tq_api.urgent(int(argv[0], 10))
+    print(msg)
+
+
+def handle_up(argv):
+    conn = connect()
+    if not conn:
+        sys.exit(1)
+
+    if not argv or len(argv) > 1:
+        sys.exit(1)
+
+    msg = tq_api.up(int(argv[0], 10))
+    print(msg)
+
+
+def handle_down(argv):
+    conn = connect()
+    if not conn:
+        sys.exit(1)
+
+    if not argv or len(argv) > 1:
+        sys.exit(1)
+
+    msg = tq_api.down(int(argv[0], 10))
     print(msg)
 
 
