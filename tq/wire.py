@@ -73,12 +73,12 @@ class TQSession(TQAddr):
         self.wlock = None
 
     def send(self, msg):
-        with self.wlock:
-            try:
+        try:
+            with self.wlock:
                 self.rw.write(msg.serialize() + '\n')
                 self.rw.flush()
-            except:
-                pass
+        except:
+            pass
 
     def recv(self):
         try:
