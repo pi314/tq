@@ -262,6 +262,17 @@ def cancel(task_id_list):
         return session.recv()
 
 
+def kill(task_id_list, signal=None):
+    with sm.get() as session:
+        args = {}
+        if task_id_list:
+            args['task_id_list'] = task_id_list
+        if signal:
+            args['signal'] = signal
+        session.send(TQCommand, 'kill', args)
+        return session.recv()
+
+
 def clear(task_id_list):
     with sm.get() as session:
         args = {'task_id_list': task_id_list} if task_id_list else {}

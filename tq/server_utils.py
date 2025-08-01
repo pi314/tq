@@ -278,6 +278,12 @@ class Task:
         except (Exception, KeyboardInterrupt, SystemExit) as e:
             self.exception = e
 
+    def kill(self, sig=None):
+        if self.proc:
+            import signal
+            import os
+            os.kill(self.proc.pid, sig or signal.SIGKILL)
+
     def teardown(self):
         for f in [self.cmd_file, self.stdout_file, self.stderr_file, self.ret_file]:
             try:

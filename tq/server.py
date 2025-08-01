@@ -255,6 +255,26 @@ def handle_msg(logger, conn, msg):
                 ret.append({'task_id': task_id, 'result': res})
             conn.send(TQResult(msg.txid, 200, ret))
 
+    elif msg.cmd == 'kill':
+        with task_queue:
+            ret = []
+            task_id_list = msg.args.task_id_list or [task.id
+                                                     for task in task_queue
+                                                     if task.status in ('running', 'pending')]
+            for task_id in task_id_list:
+                if task_queue[task_id] is None:
+                    res = 404
+                elif task_queue[task_id].status == 'running':
+                    logging.info(msg)
+                    task_queue[task_id].kill(sig=msg.args.signal)
+                    res = 200
+                elif task_queue.cancel(task_id):
+                    res = 200
+                else:
+                    res = 500
+                ret.append({'task_id': task_id, 'result': res})
+            conn.send(TQResult(msg.txid, 200, ret))
+
     elif msg.cmd == 'clear':
         try:
             with task_queue:

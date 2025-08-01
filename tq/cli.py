@@ -1,6 +1,7 @@
 import argparse
 import sys
 import os
+import re
 
 import subprocess as sub
 import threading
@@ -137,8 +138,11 @@ def main():
         print('WIP')
         sys.exit(1)
 
-    elif argv[0] in ('cancel', 'kill'):
-        handle_kill(argv[1:], soft=(argv[0] == 'cancel'))
+    elif argv[0] in ('cancel',):
+        handle_cancel(argv[1:])
+
+    elif argv[0] in ('kill',):
+        handle_kill(argv[1:])
 
     elif argv[0] in ('clear',):
         handle_clear(argv[1:])
@@ -441,13 +445,34 @@ def handle_wait(argv):
     monitor_thread.join()
 
 
-def handle_kill(argv, soft=False):
+def handle_cancel(argv):
     conn = connect()
     if not conn:
         sys.exit(1)
 
     task_id_list = [int(arg) for arg in argv]
     res = tq_api.cancel(task_id_list)
+    print(res, res.args)
+
+
+def handle_kill(argv):
+    conn = connect()
+    if not conn:
+        sys.exit(1)
+
+    task_id_list = []
+    signal = None
+    for arg in argv:
+        m = re.fullmatch(r'-([0-9]+)', arg)
+        if m:
+            signal = int(m.group(1), 10)
+            continue
+
+        m = re.fullmatch(r'([0-9]+)', arg)
+        if m:
+            task_id_list.append(int(m.group(1), 10))
+
+    res = tq_api.kill(task_id_list, signal=signal)
     print(res, res.args)
 
 
