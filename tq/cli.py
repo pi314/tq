@@ -287,20 +287,20 @@ def handle_info(argv):
 
         try:
             lines = []
-            lines.append(f'task id : {info["task_id"]}')
-            lines.append(f'pid     : {info["pid"]}')
-            lines.append(f'cwd     : {info["cwd"]}')
-            lines.append(f'command : {shlex.join(info["cmd"] or [])}')
-            lines.append(f'return  : {info["returncode"]}')
-            lines.append(f'status  : {info["status"]}')
-            lines.append(f'stdout  : {info["stdout"]}')
-            lines.append(f'stderr  : {info["stderr"]}')
+            lines.append(f'task id : {info.task_id}')
+            lines.append(f'pid     : {info.pid}')
+            lines.append(f'cwd     : {info.cwd}')
+            lines.append(f'command : {shlex.join(info.cmd or [])}')
+            lines.append(f'return  : {info.returncode}')
+            lines.append(f'status  : {info.status}')
+            lines.append(f'stdout  : {info.stdout}')
+            lines.append(f'stderr  : {info.stderr}')
             if 'error' in info:
-                lines.append(f'error   : {info["error"]}')
+                lines.append(f'error   : {info.error}')
             for line in lines:
                 print(line)
         except Exception as e:
-            print(f'task id : {info["task_id"]}')
+            print(f'task id : {info.task_id}')
             print(f'error   : {repr(e)}')
 
 
