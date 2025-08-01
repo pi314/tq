@@ -398,11 +398,18 @@ def handle_wait(argv):
     if not conn:
         sys.exit(1)
 
+    task_id_list = set()
     if not argv:
-        print('Which tasks to wait?')
-        sys.exit(1)
-
-    task_id_list = set(int(arg) for arg in argv)
+        msg = tq_api.list()
+        for info in msg.args:
+            if info.status in ('running',):
+                task_id_list = set([info.task_id])
+                break
+        if not task_id_list:
+            print('No running tasks to wait')
+            sys.exit(1)
+    else:
+        task_id_list = set(int(arg) for arg in argv)
 
     # Receive task events from server
     desk_lock = threading.Lock()
