@@ -211,7 +211,7 @@ def handle_msg(logger, conn, msg):
         try:
             ret = []
             with task_queue:
-                if not msg.task_id_list:
+                if not msg.args.task_id_list:
                     # Query without task_id_list
                     for task in task_queue:
                         ret.append(task.info)
