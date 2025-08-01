@@ -312,11 +312,13 @@ def handle_cat(argv):
     desk_lock = threading.Lock()
     desk = {}
     update_num = threading.Semaphore(0)
+    bye = threading.Event()
 
     def task_event_handler(msg):
         from .tq_api import TQEvent
         if not isinstance(msg, TQEvent):
             task_id_list.append(None)
+            bye.set()
             update_num.release()
             return False
         if msg.event != 'task':
@@ -343,6 +345,9 @@ def handle_cat(argv):
                     sys.stdout.flush()
                     continue
 
+                if bye.is_set():
+                    break
+
                 with desk_lock:
                     if desk[task_id][1] in ('finished', 'error'):
                         break
@@ -354,6 +359,9 @@ def handle_cat(argv):
     skip_finished = forever
     while True:
         update_num.acquire()
+        if bye.is_set():
+            break
+
         with desk_lock:
             if not task_id_list:
                 if forever:

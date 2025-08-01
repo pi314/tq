@@ -236,16 +236,19 @@ def down(task_id):
 
 def subscribe(callback, finished=False):
     def handler():
-        with sm.get() as session:
-            session.send(TQCommand, 'subscribe', args={'finished': finished})
-            msg = session.recv()
-            if not msg or msg.res < 200:
-                return
-
-            while session:
+        try:
+            with sm.get() as session:
+                session.send(TQCommand, 'subscribe', args={'finished': finished})
                 msg = session.recv()
-                if callback(msg) == False or not msg:
-                    break
+                if not msg or msg.res < 200:
+                    return
+
+                while session:
+                    msg = session.recv()
+                    if callback(msg) == False or not msg:
+                        break
+        finally:
+            callback(None)
 
     t = threading.Thread(target=handler, daemon=True)
     t.start()
