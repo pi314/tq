@@ -288,6 +288,7 @@ def handle_info(argv):
         try:
             lines = []
             lines.append(f'task id : {info["task_id"]}')
+            lines.append(f'pid     : {info["pid"]}')
             lines.append(f'cwd     : {info["cwd"]}')
             lines.append(f'command : {shlex.join(info["cmd"] or [])}')
             lines.append(f'return  : {info["returncode"]}')

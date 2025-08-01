@@ -203,6 +203,7 @@ class Task:
     def info(self):
         ret = {
                 'task_id': self.id,
+                'pid': self.proc.pid if self.proc else None,
                 'cmd': self.cmd,
                 'cwd': self.cwd,
                 'stdout': str(self.stdout_file),
