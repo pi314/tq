@@ -79,9 +79,13 @@ def boot(onready):
 
     logging.info('=' * 40)
 
-    task_queue = TaskQueue()
-    client_list = ClientList()
-    event_hub = ServerEventHub()
+    try:
+        task_queue = TaskQueue()
+        client_list = ClientList()
+        event_hub = ServerEventHub()
+    except (Exception, KeyboardInterrupt, SystemExit) as e:
+        logging.exception(e)
+        sys.exit(1)
 
     logging.info('start worker thread')
     t1 = threading.Thread(target=worker_thread, daemon=True)
@@ -334,6 +338,9 @@ def handle_msg(logger, conn, msg):
 
 def worker_thread():
     logging.info('worker thread start')
+    if len(task_queue):
+        logging.info('task_queue not empty, auto block')
+        task_queue.block()
 
     try:
         logging.info(f'task_queue len={len(task_queue)}')

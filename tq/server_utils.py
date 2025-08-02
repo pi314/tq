@@ -70,6 +70,9 @@ class TaskQueue:
         self.go = threading.Event()
         self.pass_num = None
 
+        if self.queue_file.exists():
+            self.load()
+
     @property
     def queue_file(self):
         return TQ_DIR / f'tq.queue'
@@ -109,8 +112,26 @@ class TaskQueue:
     def __len__(self):
         return len(self.pending_list)
 
+    def load(self):
+        with open(self.queue_file, 'r', encoding='utf-8') as f:
+            obj = json.load(f)
+
+        self.finished_list = obj['finished']
+        if obj['running']:
+            self.pending_list.append(obj['running'])
+        self.pending_list += obj['pending']
+
+        self.next_id = max([0] + self.finished_list + self.pending_list) + 1
+
+        for task_id in self.finished_list:
+            self.index[task_id] = Task.load(task_id)
+
+        for task_id in self.pending_list:
+            self.index[task_id] = Task.load(task_id)
+            self.index[task_id].returncode = None
+
     def update_queue_file(self):
-        with open(self.queue_file, 'w') as f:
+        with open(self.queue_file, 'w', encoding='utf-8') as f:
             obj = {
                     'finished': self.finished_list,
                     'running': self._current,
@@ -233,7 +254,7 @@ class TaskQueue:
 
 
 class Task:
-    def __init__(self, cmd, cwd=None, env=None):
+    def __init__(self, cmd=[], cwd=None, env={}):
         self.id = 0
         self.cmd = cmd
         self.cwd = cwd
@@ -241,10 +262,26 @@ class Task:
         self.canceled = False
 
         self.proc = None
+        self.returncode = None
         self.exception = None
 
     def __repr__(self):
         return f'Task(id={self.id}, cmd={self.cmd})'
+
+    @staticmethod
+    def load(task_id):
+        task = Task()
+        task.id = task_id
+        if not task.info_file.exists():
+            return
+        with open(task.info_file, 'r', encoding='utf-8') as f:
+            obj = json.load(f)
+        task.cmd = obj['cmd']
+        task.cwd = obj['cwd']
+        task.env = obj['env']
+        task.returncode = obj['returncode']
+        task.canceled = obj['status'] == 'canceled'
+        return task
 
     @property
     def info(self):
@@ -256,7 +293,7 @@ class Task:
                 'env': self.env,
                 'stdout': str(self.stdout_file),
                 'stderr': str(self.stderr_file),
-                'returncode': self.proc.returncode if self.proc else None,
+                'returncode': self.returncode,
                 'status': self.status,
                 }
         if self.error:
@@ -285,15 +322,17 @@ class Task:
 
     @property
     def status(self):
+        if not self.cmd:
+            return 'error'
         if self.exception:
             return 'error'
         if self.canceled:
             return 'canceled'
-        if not self.proc:
-            return 'pending'
-        if self.proc.returncode is None:
+        if self.returncode is not None:
+            return 'finished'
+        if self.proc:
             return 'running'
-        return 'finished'
+        return 'pending'
 
     def setup(self, task_id):
         self.id = task_id
@@ -306,7 +345,7 @@ class Task:
 
     def update_info_file(self):
         try:
-            with open(self.info_file, 'w') as f:
+            with open(self.info_file, 'w', encoding='utf-8') as f:
                 json.dump(self.info, f, indent=4)
         except:
             pass
@@ -327,9 +366,7 @@ class Task:
                                       stdout=stdout_file, stderr=stderr_file,
                                       env=self.env)
                 self.update_info_file()
-                returncode = self.proc.wait()
-                if returncode < 0:
-                    returncode = 128 - returncode
+                self.returncode = self.proc.wait()
         except (Exception, KeyboardInterrupt, SystemExit) as e:
             self.exception = e
         finally:
