@@ -43,10 +43,19 @@ class TQServerSocket:
 
 
 class TaskQueue:
+    def post_action(handler):
+        def decorator(f):
+            def wrapper(self, *args, **kwargs):
+                ret = f(self, *args, **kwargs)
+                handler(self)
+                return ret
+            return wrapper
+        return decorator
+
     def __init__(self):
-        self.bye = False
+        self.bye = threading.Event()
         self.finished_list = []
-        self.current = None
+        self._current = None
         self.pending_list = []
         self.index = {}
 
@@ -56,9 +65,18 @@ class TaskQueue:
         self.pass_num = None
 
     @property
+    def queue_file(self):
+        return TQ_DIR / f'tq.queue'
+
+    @property
     def time_to_block(self):
         with self:
             return self.pass_num
+
+    @property
+    def current(self):
+        if self._current is not None:
+            return self[self._current]
 
     def __enter__(self):
         self.rlock.acquire()
@@ -68,10 +86,12 @@ class TaskQueue:
 
     def __iter__(self):
         with self:
-            yield from self.finished_list
+            for task_id in self.finished_list:
+                yield self[task_id]
             if self.current:
                 yield self.current
-            yield from self.pending_list
+            for task_id in self.pending_list:
+                yield self[task_id]
 
     def __getitem__(self, index):
         with self:
@@ -83,100 +103,121 @@ class TaskQueue:
     def __len__(self):
         return len(self.pending_list)
 
+    def update_queue_file(self):
+        with self:
+            with open(self.queue_file, 'w') as f:
+                obj = {
+                        'finished': self.finished_list,
+                        'running': self._current,
+                        'pending': self.pending_list,
+                        }
+                json.dump(obj, f, indent=4)
+
+    def check_if_ok_to_go(self):
+        if self.bye.is_set():
+            self.go.set()
+        elif self.pending_list and self.pass_num != 0:
+            self.go.set()
+        else:
+            self.go.clear()
+
     def wait(self):
         self.go.wait()
         with self:
+            if self.bye.is_set():
+                return False
+
             if self.pending_list:
-                self.current = self.pending_list.pop(0)
+                self._current = self.pending_list.pop(0)
 
         return self.current is not None
 
+    @post_action(check_if_ok_to_go)
     def quit(self):
+        if self.current:
+            self.current.kill()
+        self.bye.set()
         self.unblock()
-        self.insert(None)
 
     def append(self, task):
         with self:
             return self.insert(task, index=None)
 
+    @post_action(check_if_ok_to_go)
+    @post_action(update_queue_file)
     def insert(self, task, index=0):
         with self:
-            if task:
-                task.setup(self.next_id)
-                self.next_id += 1
-                self.index[task.id] = task
+            task.setup(self.next_id)
+            self.next_id += 1
+            self.index[task.id] = task
             if index is None:
-                self.pending_list.append(task)
+                self.pending_list.append(task.id)
             else:
-                self.pending_list.insert(index, task)
-            self.check_if_ok_to_go()
+                self.pending_list.insert(index, task.id)
             return task.id if task else None
 
+    @post_action(check_if_ok_to_go)
+    @post_action(update_queue_file)
     def cancel(self, task_id):
         with self:
-            task = self.index.get(task_id, None)
-            if task:
-                try:
-                    self.pending_list.remove(task)
-                    task.canceled = True
-                    self.finished_list.append(task)
-                except:
-                    return False
+            if task_id in self.index:
+                self[task_id].cancel()
             return True
 
+    @post_action(check_if_ok_to_go)
+    @post_action(update_queue_file)
     def clear(self, task_id):
         try:
             with self:
-                task = self.index.get(task_id, None)
+                task = self[task_id]
                 if not task or task.status in ('pending', 'running'):
                     return False
-                self.finished_list.remove(task)
+                self.finished_list.remove(task_id)
                 task.teardown()
                 return True
         except:
             return False
 
+    @post_action(check_if_ok_to_go)
+    @post_action(update_queue_file)
     def archive(self):
         with self:
-            self.finished_list.append(self.current)
-            self.current = None
+            self.finished_list.append(self._current)
+            self._current = None
             if self.pass_num is not None:
                 self.pass_num -= 1
-            self.check_if_ok_to_go()
 
-    def check_if_ok_to_go(self):
-        if self.pending_list and self.pass_num != 0:
-            self.go.set()
-        else:
-            self.go.clear()
-
+    @post_action(check_if_ok_to_go)
     def block(self):
         with self:
             self.pass_num = 0
-            self.check_if_ok_to_go()
 
+    @post_action(check_if_ok_to_go)
     def unblock(self, count=None):
         with self:
             self.pass_num = count
-            self.check_if_ok_to_go()
 
+    @post_action(check_if_ok_to_go)
+    @post_action(update_queue_file)
     def urgent(self, task_id):
         with self:
-            task = self.index.get(task_id, None)
+            task = self[task_id]
             if not task or task.status != 'pending':
                 return False
 
-            self.pending_list.remove(task)
-            self.pending_list.insert(0, task)
+            self.pending_list.remove(task_id)
+            self.pending_list.insert(0, task_id)
             return True
 
+    @post_action(check_if_ok_to_go)
+    @post_action(update_queue_file)
     def move(self, task_id, drift):
         with self:
-            task = self.index.get(task_id, None)
+            task = self[task_id]
             if not task or task.status != 'pending':
                 return False
 
-            idx = self.pending_list.index(task)
+            idx = self.pending_list.index(task_id)
             new_idx = min(max((idx + drift), 0), (len(self.pending_list) - 1))
             if new_idx != idx:
                 l = self.pending_list
@@ -265,7 +306,13 @@ class Task:
         except:
             pass
 
+    def cancel(self):
+        self.canceled = True
+        self.update_info_file()
+
     def run(self):
+        if self.canceled:
+            return
         try:
             from contextlib import ExitStack
             with ExitStack() as stack:
@@ -278,9 +325,10 @@ class Task:
                 returncode = self.proc.wait()
                 if returncode < 0:
                     returncode = 128 - returncode
-                self.update_info_file()
         except (Exception, KeyboardInterrupt, SystemExit) as e:
             self.exception = e
+        finally:
+            self.update_info_file()
 
     def kill(self, sig=None):
         if self.proc:
