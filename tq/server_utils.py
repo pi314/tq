@@ -1,6 +1,7 @@
 import subprocess as sub
 import threading
 import socket
+import json
 
 from .config import TQ_DIR
 from .wire import TQAddr, TQSession, TQEvent
@@ -206,6 +207,7 @@ class Task:
                 'pid': self.proc.pid if self.proc else None,
                 'cmd': self.cmd,
                 'cwd': self.cwd,
+                'env': self.env,
                 'stdout': str(self.stdout_file),
                 'stderr': str(self.stderr_file),
                 'returncode': self.proc.returncode if self.proc else None,
@@ -216,9 +218,9 @@ class Task:
         return ret
 
     @property
-    def cmd_file(self):
+    def info_file(self):
         if self.id:
-            return TQ_DIR / f'tq.task.{self.id}.cmd'
+            return TQ_DIR / f'tq.task.{self.id}.info'
 
     @property
     def stdout_file(self):
@@ -229,11 +231,6 @@ class Task:
     def stderr_file(self):
         if self.id:
             return TQ_DIR / f'tq.task.{self.id}.stderr'
-
-    @property
-    def ret_file(self):
-        if self.id:
-            return TQ_DIR / f'tq.task.{self.id}.returncode'
 
     @property
     def error(self):
@@ -256,26 +253,32 @@ class Task:
         self.id = task_id
 
         TQ_DIR.mkdir(parents=True, exist_ok=True)
-        self.cmd_file.touch(exist_ok=True)
         self.stdout_file.touch(exist_ok=True)
         self.stderr_file.touch(exist_ok=True)
-        self.ret_file.touch(exist_ok=True)
 
-        with open(self.cmd_file, 'w') as f:
-            f.write(str(self.cmd) + '\n')
+        self.update_info_file()
+
+    def update_info_file(self):
+        try:
+            with open(self.info_file, 'w') as f:
+                json.dump(self.info, f, indent=4)
+        except:
+            pass
 
     def run(self):
         try:
-            with open(self.stdout_file, 'wb') as stdout_file:
-                with open(self.stderr_file, 'wb') as stderr_file:
-                    self.proc = sub.Popen(self.cmd, cwd=self.cwd,
-                                          stdout=stdout_file, stderr=stderr_file,
-                                          env=self.env)
-                    returncode = self.proc.wait()
-                    if returncode < 0:
-                        returncode = 128 - returncode
-                    with open(self.ret_file, 'w') as ret_file:
-                        ret_file.write(f'{returncode}\n')
+            from contextlib import ExitStack
+            with ExitStack() as stack:
+                stdout_file = stack.enter_context(open(self.stdout_file, 'wb'))
+                stderr_file = stack.enter_context(open(self.stderr_file, 'wb'))
+                self.proc = sub.Popen(self.cmd, cwd=self.cwd,
+                                      stdout=stdout_file, stderr=stderr_file,
+                                      env=self.env)
+                self.update_info_file()
+                returncode = self.proc.wait()
+                if returncode < 0:
+                    returncode = 128 - returncode
+                self.update_info_file()
         except (Exception, KeyboardInterrupt, SystemExit) as e:
             self.exception = e
 
@@ -286,7 +289,7 @@ class Task:
             os.kill(self.proc.pid, sig or signal.SIGKILL)
 
     def teardown(self):
-        for f in [self.cmd_file, self.stdout_file, self.stderr_file, self.ret_file]:
+        for f in [self.info_file, self.stdout_file, self.stderr_file]:
             try:
                 f.unlink(missing_ok=True)
             except:
