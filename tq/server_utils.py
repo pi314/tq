@@ -43,7 +43,7 @@ class TQServerSocket:
 
 
 class TaskQueue:
-    def post_action(handler):
+    def post(handler):
         def decorator(f):
             def wrapper(self, *args, **kwargs):
                 ret = f(self, *args, **kwargs)
@@ -51,6 +51,12 @@ class TaskQueue:
                 return ret
             return wrapper
         return decorator
+
+    def lock(f):
+        def wrapper(self, *args, **kwargs):
+            with self:
+                return f(self, *args, **kwargs)
+        return wrapper
 
     def __init__(self):
         self.bye = threading.Event()
@@ -104,14 +110,13 @@ class TaskQueue:
         return len(self.pending_list)
 
     def update_queue_file(self):
-        with self:
-            with open(self.queue_file, 'w') as f:
-                obj = {
-                        'finished': self.finished_list,
-                        'running': self._current,
-                        'pending': self.pending_list,
-                        }
-                json.dump(obj, f, indent=4)
+        with open(self.queue_file, 'w') as f:
+            obj = {
+                    'finished': self.finished_list,
+                    'running': self._current,
+                    'pending': self.pending_list,
+                    }
+            json.dump(obj, f, indent=4)
 
     def check_if_ok_to_go(self):
         if self.bye.is_set():
@@ -132,99 +137,99 @@ class TaskQueue:
 
         return self.current is not None
 
-    @post_action(check_if_ok_to_go)
+    @post(check_if_ok_to_go)
     def quit(self):
         if self.current:
             self.current.kill()
         self.bye.set()
         self.unblock()
 
+    @lock
     def append(self, task):
-        with self:
-            return self.insert(task, index=None)
+        return self.insert(task, index=None)
 
-    @post_action(check_if_ok_to_go)
-    @post_action(update_queue_file)
+    @lock
+    @post(check_if_ok_to_go)
+    @post(update_queue_file)
     def insert(self, task, index=0):
-        with self:
-            task.setup(self.next_id)
-            self.next_id += 1
-            self.index[task.id] = task
-            if index is None:
-                self.pending_list.append(task.id)
-            else:
-                self.pending_list.insert(index, task.id)
-            return task.id if task else None
+        task.setup(self.next_id)
+        self.next_id += 1
+        self.index[task.id] = task
+        if index is None:
+            self.pending_list.append(task.id)
+        else:
+            self.pending_list.insert(index, task.id)
+        return task.id if task else None
 
-    @post_action(check_if_ok_to_go)
-    @post_action(update_queue_file)
+    @lock
+    @post(check_if_ok_to_go)
+    @post(update_queue_file)
     def cancel(self, task_id):
-        with self:
-            if task_id in self.index:
-                self[task_id].cancel()
-            return True
+        if task_id in self.index:
+            self[task_id].cancel()
+        return True
 
-    @post_action(check_if_ok_to_go)
-    @post_action(update_queue_file)
+    @lock
+    @post(check_if_ok_to_go)
+    @post(update_queue_file)
     def clear(self, task_id):
         try:
-            with self:
-                task = self[task_id]
-                if not task or task.status in ('pending', 'running'):
-                    return False
-                self.finished_list.remove(task_id)
-                task.teardown()
-                return True
+            task = self[task_id]
+            if not task or task.status in ('pending', 'running'):
+                return False
+            self.finished_list.remove(task_id)
+            task.teardown()
+            return True
         except:
             return False
 
-    @post_action(check_if_ok_to_go)
-    @post_action(update_queue_file)
+    @lock
+    @post(check_if_ok_to_go)
+    @post(update_queue_file)
     def archive(self):
-        with self:
-            self.finished_list.append(self._current)
-            self._current = None
-            if self.pass_num is not None:
-                self.pass_num -= 1
+        self.finished_list.append(self._current)
+        self._current = None
+        if self.pass_num is not None:
+            self.pass_num -= 1
 
-    @post_action(check_if_ok_to_go)
+    @lock
+    @post(check_if_ok_to_go)
     def block(self):
-        with self:
-            self.pass_num = 0
+        self.pass_num = 0
 
-    @post_action(check_if_ok_to_go)
+    @lock
+    @post(check_if_ok_to_go)
     def unblock(self, count=None):
-        with self:
-            self.pass_num = count
+        self.pass_num = count
 
-    @post_action(check_if_ok_to_go)
-    @post_action(update_queue_file)
+    @lock
+    @post(check_if_ok_to_go)
+    @post(update_queue_file)
     def urgent(self, task_id):
-        with self:
-            task = self[task_id]
-            if not task or task.status != 'pending':
-                return False
+        task = self[task_id]
+        if not task or task.status != 'pending':
+            return False
 
-            self.pending_list.remove(task_id)
-            self.pending_list.insert(0, task_id)
-            return True
+        self.pending_list.remove(task_id)
+        self.pending_list.insert(0, task_id)
+        return True
 
-    @post_action(check_if_ok_to_go)
-    @post_action(update_queue_file)
+    @lock
+    @post(check_if_ok_to_go)
+    @post(update_queue_file)
     def move(self, task_id, drift):
-        with self:
-            task = self[task_id]
-            if not task or task.status != 'pending':
-                return False
+        task = self[task_id]
+        if not task or task.status != 'pending':
+            return False
 
-            idx = self.pending_list.index(task_id)
-            new_idx = min(max((idx + drift), 0), (len(self.pending_list) - 1))
-            if new_idx != idx:
-                l = self.pending_list
-                l[idx], l[new_idx] = l[new_idx], l[idx]
-                return True
-            else:
-                return False
+        idx = self.pending_list.index(task_id)
+        new_idx = min(max((idx + drift), 0), (len(self.pending_list) - 1))
+        if new_idx != idx:
+            l = self.pending_list
+            l[idx], l[new_idx] = l[new_idx], l[idx]
+            return True
+        else:
+            return False
 
 
 class Task:
