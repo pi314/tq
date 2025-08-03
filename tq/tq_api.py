@@ -6,7 +6,7 @@ import itertools
 import queue
 
 from . import server
-from .wire import TQSession, TQNotSession, TQMessage, TQCommand, TQResult, TQEvent
+from .wire import TQSession, TQSessionnt, TQMessage, TQCommand, TQResult, TQEvent
 
 
 msg_not_connected = TQResult(None, 401, {'msg': 'Not connected'})
@@ -154,7 +154,7 @@ def connect(spawn=True):
     if server_pid:
         sm.bind(TQSession(server_pid))
     else:
-        sm.bind(TQNotSession())
+        sm.bind(TQSessionnt())
 
     return sm
 

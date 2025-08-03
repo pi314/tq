@@ -102,7 +102,7 @@ class TQSession(TQAddr):
             return TQMessage(None, None, None, payload)
 
 
-class TQNotSession:
+class TQSessionnt: # Sessionn't
     def __init__(self):
         pass
 
