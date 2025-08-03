@@ -278,3 +278,10 @@ def clear(task_id_list):
         args = {'task_id_list': task_id_list} if task_id_list else {}
         session.send(TQCommand, 'clear', args)
         return session.recv()
+
+
+def retry(task_id_list):
+    with sm.get() as session:
+        args = {'task_id_list': task_id_list} if task_id_list else {}
+        session.send(TQCommand, 'retry', args)
+        return session.recv()

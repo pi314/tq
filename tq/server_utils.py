@@ -224,6 +224,28 @@ class TaskQueue:
     @lock
     @post(check_if_ok_to_go)
     @post(update_queue_file)
+    def retry(self, task_id):
+        try:
+            task = self[task_id]
+            if not task:
+                return 404
+            if task.status not in ('finished', 'error', 'canceled'):
+                return 409
+            if task_id in self.finished_list:
+                self.finished_list.remove(task_id)
+            elif task_id in self.pending_list:
+                self.pending_list.remove(task_id)
+            else:
+                return 404
+            self.pending_list.append(task_id)
+            task.reset()
+            return 200
+        except:
+            return 500
+
+    @lock
+    @post(check_if_ok_to_go)
+    @post(update_queue_file)
     def archive(self):
         skipped = (self.current.canceled)
         self.finished_list.append(self._current)
@@ -354,11 +376,9 @@ class Task:
 
     def setup(self, task_id):
         self.id = task_id
-
         TQ_DIR.mkdir(parents=True, exist_ok=True)
         self.stdout_file.touch(exist_ok=True)
         self.stderr_file.touch(exist_ok=True)
-
         self.update_info_file()
 
     def update_info_file(self):
@@ -370,6 +390,12 @@ class Task:
 
     def cancel(self):
         self.canceled = True
+        self.update_info_file()
+
+    def reset(self):
+        self.canceled = False
+        self.proc = None
+        self.returncode = None
         self.update_info_file()
 
     def run(self):

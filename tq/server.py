@@ -305,6 +305,25 @@ def handle_msg(logger, conn, msg):
         except:
             conn.send(TQResult(msg.txid, 500))
 
+    elif msg.cmd == 'retry':
+        try:
+            with task_queue:
+                if msg.args.task_id_list:
+                    retry_list = msg.args.task_id_list
+                else:
+                    retry_list = [task.id
+                                  for task in task_queue
+                                  if task.status in ('error', 'canceled') or
+                                  task.status == 'finished' and task.returncode != 0]
+                logging.info(retry_list)
+
+                ret = []
+                for task_id in retry_list:
+                    ret.append({'task_id': task_id, 'result': task_queue.retry(task_id)})
+                conn.send(TQResult(msg.txid, 200 if ret else 404, ret))
+        except:
+            conn.send(TQResult(msg.txid, 500))
+
     elif msg.cmd == 'urgent':
         try:
             with task_queue:

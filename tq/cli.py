@@ -67,6 +67,7 @@ def handle_help(argv):
     print('    kill       Kill specified tasks, or the current running task if not specified')
     print('    wait       Wait for specified tasks to finish, or the current running task if not specified')
     print('    clear      Clear information of specified tasks, or all finished tasks if not specified')
+    print('    retry      Re-schedule specified task into pending queue')
 
 
 def main():
@@ -140,6 +141,9 @@ def main():
 
     elif argv[0] == 'clear':
         handle_clear(argv[1:])
+
+    elif argv[0] == 'retry':
+        handle_retry(argv[1:])
 
     elif argv[0] in ('--', 'shell'):
         handle_shell(argv[1:])
@@ -485,6 +489,23 @@ def handle_clear(argv):
 
     task_id_list = set(int(arg) for arg in argv)
     msg = tq_api.clear(task_id_list)
+    for info in msg.args:
+        print(f'{info.task_id}: {info.result}')
+
+    if not msg.args:
+        print('No tasks to clear')
+
+    if msg.res >= 400:
+        sys.exit(1)
+
+
+def handle_retry(argv):
+    conn = connect()
+    if not conn:
+        sys.exit(1)
+
+    task_id_list = [int(arg) for arg in argv]
+    msg = tq_api.retry(task_id_list)
     for info in msg.args:
         print(f'{info.task_id}: {info.result}')
 
