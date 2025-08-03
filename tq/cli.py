@@ -348,7 +348,7 @@ def handle_cat(argv):
                     break
 
                 with desk_lock:
-                    if desk[task_id][1] in ('finished', 'error'):
+                    if desk[task_id][1] in ('finished', 'error', 'canceled'):
                         break
 
                 import time
