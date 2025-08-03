@@ -49,26 +49,24 @@ def handle_help(argv):
     print('    shutdown   Shutdown tq server')
     print('    quit       =shutdown')
     print()
-    print('  Monitoring')
+    print('  Queue Monitoring')
     print('    list       Show task queue')
     print('    info       Print more detailed information about the task')
     print('    cat        Print stdout file of specified tasks, block until the tasks finish')
-    print('    head       (WIP)')
-    print('    tail       (WIP)')
     print()
-    print('  Arranging')
+    print('  Queue Management')
     print('    block      Pending to consume queued tasks')
     print('    unblock    Continue to consume queued tasks')
     print('    step       Consume one queued task (if any) and continue to block')
-    print('    urgent     Make specified task urgent, moved to the beginning of pending queue')
-    print('    up         Move specified task up')
-    print('    down       Move specified task down')
+    print('    urgent     Make specified pending task urgent, move to the beginning of pending queue')
+    print('    up         Move specified pending task up')
+    print('    down       Move specified pending task down')
     print()
-    print('  Interacting')
-    print('    cancel     Cancel tasks if they\'re not started yet')
-    print('    kill       Kill specified tasks, or the running task if not specified')
-    print('    wait       Wait for specified tasks to finish, or the running task if not specified')
-    print('    clear      Clear information of specified tasks, or finished tasks if not specified')
+    print('  Task Management')
+    print('    cancel     Cancel specified pending tasks')
+    print('    kill       Kill specified tasks, or the current running task if not specified')
+    print('    wait       Wait for specified tasks to finish, or the current running task if not specified')
+    print('    clear      Clear information of specified tasks, or all finished tasks if not specified')
 
 
 def main():
@@ -86,65 +84,61 @@ def main():
         tq_api.spawn()
         handle_list([])
 
-    elif argv[0] in ('--version',):
+    elif argv[0] == '--version':
         handle_version(argv[1:], brief=True)
 
-    elif argv[0] in ('version',):
+    elif argv[0] == 'version':
         handle_version(argv[1:], brief=False)
 
-    elif argv[0] in ('-h',):
+    elif argv[0] == '-h':
         handle_brief_help(argv[1:])
 
     elif argv[0] in ('--help', 'help'):
         handle_help(argv[1:])
 
-    elif argv[0] in ('pid',):
+    elif argv[0] == 'pid':
         handle_pid(argv[1:])
 
     elif argv[0] in ('quit', 'shutdown'):
         handle_shutdown(argv[1:])
 
-    elif argv[0] in ('list',):
+    elif argv[0] == 'list':
         handle_list(argv[1:])
 
-    elif argv[0] in ('block',):
+    elif argv[0] == 'block':
         handle_block(argv[1:])
 
-    elif argv[0] in ('unblock',):
+    elif argv[0] == 'unblock':
         handle_unblock(argv[1:])
 
-    elif argv[0] in ('step',):
+    elif argv[0] == 'step':
         handle_unblock(argv[1:], count=1)
 
-    elif argv[0] in ('urgent',):
+    elif argv[0] == 'urgent':
         handle_urgent(argv[1:])
 
-    elif argv[0] in ('up',):
+    elif argv[0] == 'up':
         handle_up(argv[1:])
 
-    elif argv[0] in ('down',):
+    elif argv[0] == 'down':
         handle_down(argv[1:])
 
-    elif argv[0] in ('info',):
+    elif argv[0] == 'info':
         handle_info(argv[1:])
 
-    elif argv[0] in ('cat',):
+    elif argv[0] == 'cat':
         handle_cat(argv[1:])
 
-    elif argv[0] in ('wait',):
+    elif argv[0] == 'wait':
         handle_wait(argv[1:])
 
-    elif argv[0] in ('head', 'tail'):
-        print('WIP')
-        sys.exit(1)
-
-    elif argv[0] in ('cancel',):
+    elif argv[0] == 'cancel':
         handle_cancel(argv[1:])
 
-    elif argv[0] in ('kill',):
+    elif argv[0] == 'kill':
         handle_kill(argv[1:])
 
-    elif argv[0] in ('clear',):
+    elif argv[0] == 'clear':
         handle_clear(argv[1:])
 
     elif argv[0] in ('--', 'shell'):
