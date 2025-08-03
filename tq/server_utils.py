@@ -106,6 +106,16 @@ class TaskQueue:
         with self:
             return self.index.get(index)
 
+    def __setitem__(self, index, value):
+        try:
+            with self:
+                if value is None:
+                    del self.index[index]
+                elif isinstance(value, Task):
+                    self.index[index] = value
+        except:
+            pass
+
     def __bool__(self):
         return bool(self.pending_list)
 
@@ -124,11 +134,11 @@ class TaskQueue:
         self.next_id = max([0] + self.finished_list + self.pending_list) + 1
 
         for task_id in self.finished_list:
-            self.index[task_id] = Task.load(task_id)
+            self[task_id] = Task.load(task_id)
 
         for task_id in self.pending_list:
-            self.index[task_id] = Task.load(task_id)
-            self.index[task_id].returncode = None
+            self[task_id] = Task.load(task_id)
+            self[task_id].returncode = None
 
     def update_queue_file(self):
         with open(self.queue_file, 'w', encoding='utf-8') as f:
@@ -175,7 +185,7 @@ class TaskQueue:
     def insert(self, task, index=0):
         task.setup(self.next_id)
         self.next_id += 1
-        self.index[task.id] = task
+        self[task.id] = task
         if index is None:
             self.pending_list.append(task.id)
         else:
@@ -186,8 +196,10 @@ class TaskQueue:
     @post(check_if_ok_to_go)
     @post(update_queue_file)
     def cancel(self, task_id):
-        if task_id in self.index:
-            self[task_id].cancel()
+        task = self[task_id]
+        if not task:
+            return False
+        self[task_id].cancel()
         return True
 
     @lock
@@ -198,7 +210,12 @@ class TaskQueue:
             task = self[task_id]
             if not task or task.status in ('pending', 'running'):
                 return False
-            self.finished_list.remove(task_id)
+            if task_id in self.finished_list:
+                self.finished_list.remove(task_id)
+            elif task_id in self.pending_list:
+                self.pending_list.remove(task_id)
+            else:
+                return False
             task.teardown()
             return True
         except:
@@ -208,10 +225,11 @@ class TaskQueue:
     @post(check_if_ok_to_go)
     @post(update_queue_file)
     def archive(self):
+        skipped = (self.current.canceled)
         self.finished_list.append(self._current)
         self._current = None
-        if self.pass_num is not None:
-            self.pass_num -= 1
+        if self.pass_num is not None and self.pass_num > 0:
+            self.pass_num -= (not skipped)
 
     @lock
     @post(check_if_ok_to_go)

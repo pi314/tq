@@ -247,7 +247,12 @@ def handle_msg(logger, conn, msg):
     elif msg.cmd == 'cancel':
         with task_queue:
             ret = []
-            for task_id in msg.args.task_id_list:
+            cancel_list = msg.args.task_id_list
+            if not cancel_list:
+                cancel_list = [task.id
+                               for task in task_queue
+                               if task_queue[task.id].status == 'pending']
+            for task_id in cancel_list:
                 if task_queue[task_id] is None:
                     res = 404
                 elif task_queue[task_id].status != 'pending':
@@ -257,7 +262,7 @@ def handle_msg(logger, conn, msg):
                 else:
                     res = 500
                 ret.append({'task_id': task_id, 'result': res})
-            conn.send(TQResult(msg.txid, 200, ret))
+            conn.send(TQResult(msg.txid, 200 if ret else 404, ret))
 
     elif msg.cmd == 'kill':
         with task_queue:
@@ -285,7 +290,8 @@ def handle_msg(logger, conn, msg):
                 if msg.args.task_id_list:
                     clear_list = msg.args.task_id_list
                 else:
-                    clear_list = [task.id for task in task_queue
+                    clear_list = [task.id
+                                  for task in task_queue
                                   if task.status not in ('pending', 'running')]
 
                 ret = []
@@ -295,7 +301,7 @@ def handle_msg(logger, conn, msg):
                     else:
                         res = 409
                     ret.append({'task_id': task_id, 'result': res})
-                conn.send(TQResult(msg.txid, 200, ret))
+                conn.send(TQResult(msg.txid, 200 if ret else 404, ret))
         except:
             conn.send(TQResult(msg.txid, 500))
 

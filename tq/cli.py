@@ -446,8 +446,15 @@ def handle_cancel(argv):
         sys.exit(1)
 
     task_id_list = [int(arg) for arg in argv]
-    res = tq_api.cancel(task_id_list)
-    print(res, res.args)
+    msg = tq_api.cancel(task_id_list)
+    for info in msg.args:
+        print(f'{info.task_id}: {info.result}')
+
+    if not msg.args:
+        print('No tasks to cancel')
+
+    if msg.res >= 400:
+        sys.exit(1)
 
 
 def handle_kill(argv):
@@ -480,6 +487,12 @@ def handle_clear(argv):
     msg = tq_api.clear(task_id_list)
     for info in msg.args:
         print(f'{info.task_id}: {info.result}')
+
+    if not msg.args:
+        print('No tasks to clear')
+
+    if msg.res >= 400:
+        sys.exit(1)
 
 
 def handle_shell(argv):
