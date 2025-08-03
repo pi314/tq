@@ -121,8 +121,13 @@ class TQNotSession:
 
 class TQJsonEncoder(json.JSONEncoder):
     def default(self, o):
-        if isinstance(o, AttrProxy):
-            return o.ref
+        ret = o
+        if isinstance(ret, AttrProxy):
+            ret = ret.ref
+        if isinstance(ret, (set, frozenset)):
+            return list(ret)
+        if ret is not o:
+            return ret
         return super().default(o)
 
 
