@@ -405,7 +405,7 @@ def handle_wait(argv):
     if not argv:
         msg = tq_api.list()
         for info in msg.args:
-            if info.status in ('running',):
+            if info.status in ('running', 'pending'):
                 task_id_list = set([info.task_id])
                 break
         if not task_id_list:
