@@ -360,40 +360,44 @@ def handle_cat(argv):
 
     # Schedule next stdout file
     skip_finished = forever
-    while True:
-        update_num.acquire()
-        if bye.is_set():
-            break
-
-        with desk_lock:
-            if not task_id_list:
-                if forever:
-                    continue
-                else:
-                    break
-
-            task_id = task_id_list[0]
-            if task_id is None:
+    try:
+        while True:
+            update_num.acquire()
+            if bye.is_set():
                 break
-            if task_id not in desk:
-                continue
-            if skip_finished and desk[task_id][1] in ('finished', 'error'):
-                task_id_list.pop(0)
-                continue
-            skip_finished = False
 
-        cat(task_id)
-        task_id_list.pop(0)
+            with desk_lock:
+                if not task_id_list:
+                    if forever:
+                        continue
+                    else:
+                        break
 
-        with desk_lock:
-            if not task_id_list:
-                if forever:
-                    continue
-                else:
+                task_id = task_id_list[0]
+                if task_id is None:
                     break
+                if task_id not in desk:
+                    continue
+                if skip_finished and desk[task_id][1] in ('finished', 'error'):
+                    task_id_list.pop(0)
+                    continue
+                skip_finished = False
 
-    conn.close()
-    monitor_thread.join()
+            cat(task_id)
+            task_id_list.pop(0)
+
+            with desk_lock:
+                if not task_id_list:
+                    if forever:
+                        continue
+                    else:
+                        break
+
+    except:
+        sys.exit(1)
+    finally:
+        conn.close()
+        monitor_thread.join()
 
 
 def handle_wait(argv):
@@ -434,14 +438,17 @@ def handle_wait(argv):
     monitor_thread = tq_api.subscribe(task_event_handler, finished=True)
 
     # Schedule next stdout file
-    while True:
-        update_num.acquire()
-        with desk_lock:
-            if not task_id_list:
-                break
-
-    conn.close()
-    monitor_thread.join()
+    try:
+        while True:
+            update_num.acquire()
+            with desk_lock:
+                if not task_id_list:
+                    break
+    except:
+        sys.exit(1)
+    finally:
+        conn.close()
+        monitor_thread.join()
 
 
 def handle_cancel(argv):
