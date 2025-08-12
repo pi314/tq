@@ -82,8 +82,7 @@ def main():
 
     # Parse sub-commands
     if not argv:
-        tq_api.spawn()
-        handle_list([])
+        handle_()
 
     elif argv[0] == '--version':
         handle_version(argv[1:], brief=True)
@@ -99,6 +98,9 @@ def main():
 
     elif argv[0] == 'pid':
         handle_pid(argv[1:])
+
+    elif argv[0] == 'status':
+        handle_status(argv[1:])
 
     elif argv[0] in ('quit', 'shutdown'):
         handle_shutdown(argv[1:])
@@ -164,6 +166,16 @@ def connect(spawn=False):
     return conn
 
 
+def handle_():
+    tq_pid = tq_api.detect()
+    if not tq_pid:
+        tq_pid = tq_api.spawn()
+        print(tq_pid)
+        sys.exit()
+
+    handle_list([])
+
+
 def handle_version(argv, brief=False):
     if brief:
         print(f'{__version__}')
@@ -178,6 +190,50 @@ def handle_pid(argv):
     if not tq_pid:
         sys.exit(1)
     print(tq_pid)
+
+
+def handle_status(argv):
+    conn = connect()
+    if not conn:
+        print('Cannot connect to tq server')
+        sys.exit(1)
+
+    msg = tq_api.status()
+    print(f'pid: {msg.args.pid}')
+    print(f'blocking: {msg.args.time_to_block is not None}')
+    if msg.args.time_to_block:
+        print(f'Time to block: {msg.args.time_to_block}')
+
+    def format_time(t):
+        import time
+        return time.strftime('%Y/%m/%d %H:%M:%S', time.localtime(t))
+
+    print(f'Boot time: {format_time(msg.args.boot_time)}')
+
+    def format_uptime(t):
+        t = int(t)
+        secs = t % 60
+        mins = (t // 60) % 60
+        hours = (t // 3600) % 24
+        days = (t // 3600) // 24
+        parts = []
+        if days:
+            parts.append(f'{days} days')
+        if hours:
+            parts.append(f'{hours} hours')
+        if mins:
+            parts.append(f'{mins} mins')
+        if secs:
+            parts.append(f'{secs} secs')
+        return ' '.join(parts)
+
+    import time
+    print(f'Up time: {format_uptime(time.time() - msg.args.boot_time)}')
+
+    print()
+    print(f'Finshed: {msg.args.finished}')
+    print(f'Running: {int(msg.args.running)}')
+    print(f'Pending: {msg.args.pending}')
 
 
 def handle_shutdown(argv):

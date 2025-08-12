@@ -132,6 +132,15 @@ def spawn():
         return None
 
 
+def status():
+    if not sm:
+        return msg_not_connected
+
+    with sm.get() as session:
+        session.send(TQCommand, 'status')
+        return session.recv()
+
+
 def shutdown():
     if not sm:
         return msg_not_connected

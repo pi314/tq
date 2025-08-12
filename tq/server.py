@@ -13,6 +13,8 @@ from .wire import TQCommand, TQResult, TQEvent
 from .server_utils import TQServerSocket, ClientList, ServerEventHub
 from .server_utils import TaskQueue, Task
 
+boot_time = None
+
 ss = None
 
 task_queue = None
@@ -29,11 +31,17 @@ def spawn():
     if daemon_pid is not None and daemon_pid != os.getpid():
         return daemon_pid
 
-    ret = daemon.spawn()
-    if isinstance(ret, int) or ret is None:
-        return ret
+    sp = daemon.spawn()
+    if isinstance(sp, int) or sp is None:
+        return sp
 
-    onready = ret
+    def onready(*args, **kwargs):
+        global boot_time
+        sp(*args, **kwargs)
+
+        import time
+        boot_time = time.time()
+
     boot(onready)
 
 
@@ -190,6 +198,17 @@ def handle_msg(logger, conn, msg):
         shutdown()
         return True
 
+    elif msg.cmd == 'status':
+        with task_queue:
+            conn.send(TQResult(msg.txid, 200, {
+                'pid': os.getpid(),
+                'time_to_block': task_queue.time_to_block,
+                'boot_time': boot_time,
+                'finished': len(task_queue.finished_list),
+                'running': task_queue.current is not None,
+                'pending': len(task_queue.pending_list),
+                }))
+
     elif msg.cmd == 'echo':
         conn.send(TQResult(msg.txid, 200, {'args': msg.args}))
 
@@ -341,8 +360,6 @@ def handle_msg(logger, conn, msg):
             conn.send(TQResult(msg.txid, 500))
 
     elif msg.cmd in ('up', 'down'):
-        logger.info(msg.cmd, 'entry')
-        # try:
         with task_queue:
             if not msg.args.task_id:
                 conn.send(TQResult(msg.txid, 400))
@@ -354,8 +371,6 @@ def handle_msg(logger, conn, msg):
                 res = 409
             ret.append({'task_id': task_id, 'result': res})
             conn.send(TQResult(msg.txid, 200, ret))
-        # except:
-        #     conn.send(TQResult(msg.txid, 500))
 
     else:
         return False
