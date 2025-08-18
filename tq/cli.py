@@ -241,8 +241,8 @@ def handle_shutdown(argv):
     if not conn:
         sys.exit(1)
 
-    res = tq_api.shutdown()
-    print(res)
+    tq_api.shutdown()
+    print('bye')
 
 
 def handle_list(argv):
@@ -266,12 +266,12 @@ def handle_list(argv):
         except:
             lines.append((str(info.task_id), '404', ''))
 
-    width = [0 for col in lines[0]]
+    width = [0 for col in lines[0]][::-1]
     for line in lines:
-        width = [max(width[i], len(line[i])) for i in range(3)]
+        width = [max(width[i], len(line[i])) for i in range(len(width))]
 
     for line in lines:
-        print(line[0].rjust(width[0]) +'  '+ line[1].ljust(width[1]) +'  '+ line[2].ljust(width[2]))
+        print(f'{line[0].rjust(width[0])}  {line[1].ljust(width[1])}  {line[2]}')
 
 
 def handle_block(argv):
