@@ -7,6 +7,7 @@ import time
 import subprocess as sub
 import threading
 import queue
+import shlex
 
 from os.path import basename
 
@@ -261,7 +262,6 @@ def handle_list(argv):
     lines.append(('id', 'status', 'cmd'))
     msg = tq_api.list(task_id_list)
     for info in msg.args:
-        import shlex
         try:
             if info.status in ('running', 'pending', 'canceled', 'error'):
                 status = info.status
@@ -338,9 +338,24 @@ def handle_info(argv):
     if not conn:
         sys.exit(1)
 
-    import shlex
-    msg = tq_api.list([int(arg) for arg in argv])
-    for idx, info in enumerate(msg.args):
+    try:
+        msg = tq_api.list([int(arg) for arg in argv])
+    except:
+        msg = tq_api.list()
+
+    task_info_list = []
+    for info in msg.args:
+        if argv == ['all']:
+            task_info_list.append(info)
+        elif not argv and info.status in ('running', 'pending'):
+            task_info_list = [info]
+            break
+        elif info.status in argv:
+            task_info_list.append(info)
+        elif str(info.task_id) in argv:
+            task_info_list.append(info)
+
+    for idx, info in enumerate(task_info_list):
         if idx:
             print()
 
