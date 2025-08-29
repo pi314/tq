@@ -2,6 +2,7 @@ import argparse
 import sys
 import os
 import re
+import time
 
 import subprocess as sub
 import threading
@@ -68,6 +69,33 @@ def handle_help(argv):
     print('    wait       Wait for specified tasks to finish, or the current running task if not specified')
     print('    clear      Clear information of specified tasks, or all finished tasks if not specified')
     print('    retry      Re-schedule specified task into pending queue')
+
+
+def format_time(t):
+    if t is None:
+        return 'None'
+    return time.strftime('%Y/%m/%d %H:%M:%S', time.localtime(t))
+
+
+def format_time_delta(t):
+    if t is None:
+        return 'None'
+
+    t = int(t)
+    secs = t % 60
+    mins = (t // 60) % 60
+    hours = (t // 3600) % 24
+    days = (t // 3600) // 24
+    parts = []
+    if days:
+        parts.append(f'{days} days')
+    if hours:
+        parts.append(f'{hours} hours')
+    if mins:
+        parts.append(f'{mins} mins')
+    if secs:
+        parts.append(f'{secs} secs')
+    return ' '.join(parts)
 
 
 def main():
@@ -203,32 +231,9 @@ def handle_status(argv):
     print(f'blocking: {msg.args.time_to_block is not None}')
     if msg.args.time_to_block:
         print(f'Time to block: {msg.args.time_to_block}')
-
-    def format_time(t):
-        import time
-        return time.strftime('%Y/%m/%d %H:%M:%S', time.localtime(t))
-
     print(f'Boot time: {format_time(msg.args.boot_time)}')
 
-    def format_uptime(t):
-        t = int(t)
-        secs = t % 60
-        mins = (t // 60) % 60
-        hours = (t // 3600) % 24
-        days = (t // 3600) // 24
-        parts = []
-        if days:
-            parts.append(f'{days} days')
-        if hours:
-            parts.append(f'{hours} hours')
-        if mins:
-            parts.append(f'{mins} mins')
-        if secs:
-            parts.append(f'{secs} secs')
-        return ' '.join(parts)
-
-    import time
-    print(f'Up time: {format_uptime(time.time() - msg.args.boot_time)}')
+    print(f'Up time: {format_time_delta(time.time() - msg.args.boot_time)}')
 
     print()
     print(f'Finshed: {msg.args.finished}')
@@ -349,6 +354,15 @@ def handle_info(argv):
             lines.append(f'status  : {info.status}')
             lines.append(f'stdout  : {info.stdout}')
             lines.append(f'stderr  : {info.stderr}')
+
+            if not info.start_time:
+                duration = None
+            elif not info.end_time:
+                duration = time.time() - info.start_time
+            else:
+                duration = info.end_time - info.start_time
+            lines.append(f'start   : {format_time(info.start_time)}')
+            lines.append(f'end     : {format_time(info.end_time)} ({format_time_delta(duration)})')
             if 'error' in info:
                 lines.append(f'error   : {info.error}')
             for line in lines:
@@ -411,7 +425,6 @@ def handle_cat(argv):
                     if desk[task_id][1] in ('finished', 'error', 'canceled'):
                         break
 
-                import time
                 time.sleep(0.1)
 
     # Schedule next stdout file

@@ -165,13 +165,18 @@ def handle_client(conn):
             if not msg:
                 break
 
-            result = handle_msg(logger, conn, msg)
-            if result is False:
-                logger.info('server 400')
-                conn.send(TQResult(msg.txid, 400))
-                break
-            elif result is True:
-                break
+            try:
+                result = handle_msg(logger, conn, msg)
+                if result is False:
+                    logger.info('server 400')
+                    conn.send(TQResult(msg.txid, 400))
+                    break
+                elif result is True:
+                    break
+            except Exception as e:
+                logger.exception(e)
+                conn.send(TQResult(msg.txid, 500))
+
     except ModuleNotFoundError as e:
         logger.exception(e)
         shutdown()
@@ -231,24 +236,21 @@ def handle_msg(logger, conn, msg):
 
     elif msg.cmd == 'list':
         query_list = msg.args.task_id_list
-        try:
-            ret = []
-            with task_queue:
-                if not msg.args.task_id_list:
-                    # Query without task_id_list
-                    for task in task_queue:
+        ret = []
+        with task_queue:
+            if not msg.args.task_id_list:
+                # Query without task_id_list
+                for task in task_queue:
+                    ret.append(task.info)
+            else:
+                # Query with task_id_list
+                for task_id in msg.args.task_id_list:
+                    task = task_queue[task_id]
+                    if task:
                         ret.append(task.info)
-                else:
-                    # Query with task_id_list
-                    for task_id in msg.args.task_id_list:
-                        task = task_queue[task_id]
-                        if task:
-                            ret.append(task.info)
-                        else:
-                            ret.append({'task_id': task_id, 'error': 'unknown task id'})
-            conn.send(TQResult(msg.txid, 200, ret))
-        except:
-            conn.send(TQResult(msg.txid, 500))
+                    else:
+                        ret.append({'task_id': task_id, 'error': 'unknown task id'})
+        conn.send(TQResult(msg.txid, 200, ret))
 
     elif msg.cmd == 'subscribe':
         with task_queue, event_hub:
@@ -304,60 +306,50 @@ def handle_msg(logger, conn, msg):
             conn.send(TQResult(msg.txid, 200, ret))
 
     elif msg.cmd == 'clear':
-        try:
-            with task_queue:
-                if msg.args.task_id_list:
-                    clear_list = msg.args.task_id_list
-                else:
-                    clear_list = [task.id
-                                  for task in task_queue
-                                  if task.status not in ('pending', 'running')]
+        with task_queue:
+            if msg.args.task_id_list:
+                clear_list = msg.args.task_id_list
+            else:
+                clear_list = [task.id
+                              for task in task_queue
+                              if task.status not in ('pending', 'running')]
 
-                ret = []
-                for task_id in clear_list:
-                    if task_queue.clear(task_id):
-                        res = 200
-                    else:
-                        res = 409
-                    ret.append({'task_id': task_id, 'result': res})
-                conn.send(TQResult(msg.txid, 200 if ret else 404, ret))
-        except:
-            conn.send(TQResult(msg.txid, 500))
-
-    elif msg.cmd == 'retry':
-        try:
-            with task_queue:
-                if msg.args.task_id_list:
-                    retry_list = msg.args.task_id_list
-                else:
-                    retry_list = [task.id
-                                  for task in task_queue
-                                  if task.status in ('error', 'canceled') or
-                                  task.status == 'finished' and task.returncode != 0]
-                logging.info(retry_list)
-
-                ret = []
-                for task_id in retry_list:
-                    ret.append({'task_id': task_id, 'result': task_queue.retry(task_id)})
-                conn.send(TQResult(msg.txid, 200 if ret else 404, ret))
-        except:
-            conn.send(TQResult(msg.txid, 500))
-
-    elif msg.cmd == 'urgent':
-        try:
-            with task_queue:
-                if not msg.args.task_id:
-                    conn.send(TQResult(msg.txid, 400))
-                    return
-
-                if task_queue.urgent(msg.args.task_id):
+            ret = []
+            for task_id in clear_list:
+                if task_queue.clear(task_id):
                     res = 200
                 else:
                     res = 409
                 ret.append({'task_id': task_id, 'result': res})
-                conn.send(TQResult(msg.txid, 200, ret))
-        except:
-            conn.send(TQResult(msg.txid, 500))
+            conn.send(TQResult(msg.txid, 200 if ret else 404, ret))
+
+    elif msg.cmd == 'retry':
+        with task_queue:
+            if msg.args.task_id_list:
+                retry_list = msg.args.task_id_list
+            else:
+                retry_list = [task.id
+                              for task in task_queue
+                              if task.status in ('error', 'canceled') or
+                              task.status == 'finished' and task.returncode != 0]
+            logging.info(retry_list)
+
+            ret = []
+            for task_id in retry_list:
+                ret.append({'task_id': task_id, 'result': task_queue.retry(task_id)})
+            conn.send(TQResult(msg.txid, 200 if ret else 404, ret))
+
+    elif msg.cmd == 'urgent':
+        with task_queue:
+            if not msg.args.task_id:
+                conn.send(TQResult(msg.txid, 400))
+                return
+
+            if task_queue.urgent(msg.args.task_id):
+                res = 200
+            else:
+                res = 409
+            conn.send(TQResult(msg.txid, 200, {'task_id': msg.args.task_id, 'result': res}))
 
     elif msg.cmd in ('up', 'down'):
         with task_queue:
@@ -369,8 +361,7 @@ def handle_msg(logger, conn, msg):
                 res = 200
             else:
                 res = 409
-            ret.append({'task_id': task_id, 'result': res})
-            conn.send(TQResult(msg.txid, 200, ret))
+            conn.send(TQResult(msg.txid, 200, {'task_id': msg.args.task_id, 'result': res}))
 
     else:
         return False

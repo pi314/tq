@@ -304,6 +304,8 @@ class Task:
         self.proc = None
         self.returncode = None
         self.exception = None
+        self.start_time = None
+        self.end_time = None
 
     def __repr__(self):
         return f'Task(id={self.id}, cmd={self.cmd})'
@@ -335,6 +337,8 @@ class Task:
                 'stderr': str(self.stderr_file),
                 'returncode': self.returncode,
                 'status': self.status,
+                'start_time': self.start_time,
+                'end_time': self.end_time,
                 }
         if self.error:
             ret['error'] = self.error
@@ -406,13 +410,18 @@ class Task:
             with ExitStack() as stack:
                 stdout_file = stack.enter_context(open(self.stdout_file, 'wb'))
                 stderr_file = stack.enter_context(open(self.stderr_file, 'wb'))
+
+                import time
+                self.start_time = time.time()
                 self.proc = sub.Popen(self.cmd, cwd=self.cwd,
                                       stdout=stdout_file, stderr=stderr_file,
                                       env=self.env)
                 self.update_info_file()
                 self.returncode = self.proc.wait()
+                self.end_time = time.time()
         except (Exception, KeyboardInterrupt, SystemExit) as e:
             self.exception = e
+            self.end_time = time.time()
         finally:
             self.update_info_file()
 
