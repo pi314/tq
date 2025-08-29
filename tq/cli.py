@@ -256,12 +256,23 @@ def handle_list(argv):
     if not conn:
         sys.exit(1)
 
-    task_id_list = [int(arg) for arg in argv]
+    try:
+        msg = tq_api.list([int(arg) for arg in argv])
+    except:
+        msg = tq_api.list()
+
+    task_info_list = []
+    for info in msg.args:
+        if not argv or argv == ['all']:
+            task_info_list.append(info)
+        elif info.status in argv:
+            task_info_list.append(info)
+        elif str(info.task_id) in argv:
+            task_info_list.append(info)
 
     lines = []
     lines.append(('id', 'status', 'cmd'))
-    msg = tq_api.list(task_id_list)
-    for info in msg.args:
+    for info in task_info_list:
         try:
             if info.status in ('running', 'pending', 'canceled', 'error'):
                 status = info.status
