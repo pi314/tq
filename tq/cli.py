@@ -313,11 +313,12 @@ def handle_urgent(argv):
     if not conn:
         sys.exit(1)
 
-    if not argv or len(argv) > 1:
+    if not argv:
         sys.exit(1)
 
-    msg = tq_api.urgent(int(argv[0], 10))
-    print(msg)
+    for arg in argv[::-1]:
+        msg = tq_api.urgent(int(arg, 10))
+        print(msg)
 
 
 def handle_up(argv):
