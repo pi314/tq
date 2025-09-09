@@ -429,7 +429,7 @@ class Task:
         if self.proc:
             import signal
             import os
-            os.kill(self.proc.pid, sig or signal.SIGKILL)
+            os.kill(self.proc.pid, sig or signal.SIGINT)
 
     def teardown(self):
         for f in [self.info_file, self.stdout_file, self.stderr_file]:
