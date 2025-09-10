@@ -270,8 +270,11 @@ def handle_list(argv):
         elif str(info.task_id) in argv:
             task_info_list.append(info)
 
+    msg = tq_api.status()
+    is_blocking = msg.args.time_to_block is not None
+
     lines = []
-    lines.append(('id', 'status', 'cmd'))
+    lines.append(('id', 'status', f'cmd {"(blocking)" if is_blocking else ""}'))
     for info in task_info_list:
         try:
             if info.status in ('running', 'pending', 'canceled', 'error'):
