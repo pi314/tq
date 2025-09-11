@@ -50,6 +50,7 @@ def handle_help(argv):
     print('    pid        Show the pid of tq server')
     print('    shutdown   Shutdown tq server')
     print('    quit       =shutdown')
+    print('    q          =tq -- tq quit')
     print()
     print('  Queue Monitoring')
     print('    list       Show task queue')
@@ -133,6 +134,9 @@ def main():
 
     elif argv[0] in ('quit', 'shutdown'):
         handle_shutdown(argv[1:])
+
+    elif argv[0] == 'q':
+        handle_queue_shutdown(argv[1:])
 
     elif argv[0] == 'list':
         handle_list(argv[1:])
@@ -249,6 +253,15 @@ def handle_shutdown(argv):
 
     tq_api.shutdown()
     print('bye')
+
+
+def handle_queue_shutdown(argv):
+    conn = connect()
+    if not conn:
+        sys.exit(1)
+
+    res = tq_api.enqueue(['tq', 'quit'])
+    print(res)
 
 
 def handle_list(argv):
