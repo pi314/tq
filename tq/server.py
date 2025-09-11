@@ -210,7 +210,7 @@ def handle_msg(logger, conn, msg):
                 'time_to_block': task_queue.time_to_block,
                 'boot_time': boot_time,
                 'finished': len(task_queue.finished_list),
-                'running': task_queue.current is not None,
+                'running': int(task_queue.current is not None),
                 'pending': len(task_queue.pending_list),
                 }))
 

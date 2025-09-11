@@ -203,10 +203,17 @@ def handle_():
     tq_pid = tq_api.detect()
     if not tq_pid:
         tq_pid = tq_api.spawn()
-        print(tq_pid)
-        sys.exit()
 
-    handle_list([])
+    conn = connect()
+    if not conn:
+        print('Cannot connect to tq server')
+        sys.exit(1)
+
+    msg = tq_api.status()
+    if not sum([msg.args.finished, msg.args.running, msg.args.pending]):
+        handle_status([])
+    else:
+        handle_list([])
 
 
 def handle_version(argv, brief=False):
@@ -242,7 +249,7 @@ def handle_status(argv):
 
     print()
     print(f'Finshed: {msg.args.finished}')
-    print(f'Running: {int(msg.args.running)}')
+    print(f'Running: {msg.args.running}')
     print(f'Pending: {msg.args.pending}')
 
 
