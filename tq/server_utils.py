@@ -1,7 +1,11 @@
+import os
+
 import subprocess as sub
 import threading
 import socket
 import json
+
+import signal
 
 from .config import TQ_DIR
 from .wire import TQAddr, TQSession, TQEvent
@@ -415,7 +419,8 @@ class Task:
                 self.start_time = time.time()
                 self.proc = sub.Popen(self.cmd, cwd=self.cwd,
                                       stdout=stdout_file, stderr=stderr_file,
-                                      env=self.env)
+                                      env=self.env,
+                                      preexec_fn=os.setsid)
                 self.update_info_file()
                 self.returncode = self.proc.wait()
                 self.end_time = time.time()
@@ -427,9 +432,7 @@ class Task:
 
     def kill(self, sig=None):
         if self.proc:
-            import signal
-            import os
-            os.kill(self.proc.pid, sig or signal.SIGINT)
+            os.killpg(self.proc.pid, sig or signal.SIGINT)
 
     def teardown(self):
         for f in [self.info_file, self.stdout_file, self.stderr_file]:
